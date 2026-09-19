@@ -1,6 +1,6 @@
 const STORAGE_KEY = "stokBumbuDapur_v2";
 const FIREBASE_CONFIG_KEY = "stokBumbuFirebaseConfig_v1";
-let cloud = { enabled:false, db:null, app:null, unsub:null };
+let cloud = { enabled:false, db:null, app:null, auth:null, unsub:null };
 const seed = {
   bumbu: [
     {id:"1",kode:"BMB001",nama:"Bawang Merah",satuan:"Kg",min:5,stok:25},
@@ -163,39 +163,118 @@ $("resetBtn").onclick=()=>{
 };
 document.addEventListener("keydown",e=>{if(e.key==="Escape")closeModal()});
 
-/* ===================== CLOUD / FIREBASE ===================== */
+/* ===================== AUTH + CLOUD / FIREBASE ===================== */
+let authUser = null;
+let authReady = false;
+
+const FIREBASE_CONFIG = {
+  apiKey: "AIzaSyD-i_X27dw9U8ei5Bnfgp1Qp_L8MUXo5Ek",
+  authDomain: "stok-bumbu-dapur.firebaseapp.com",
+  projectId: "stok-bumbu-dapur",
+  storageBucket: "stok-bumbu-dapur.firebasestorage.app",
+  messagingSenderId: "451573124577",
+  appId: "1:451573124577:web:2a380e92be88ed522796a0"
+};
+
 function setSyncStatus(text, cls=""){
   const el=$("syncStatus"); if(!el)return;
   el.textContent=text; el.className="sync-status "+cls;
 }
 
-function getFirebaseConfig(){
-  try { return JSON.parse(localStorage.getItem(FIREBASE_CONFIG_KEY)||"null"); }
-  catch(e){ return null; }
+function injectAuthStyles(){
+  if($("authStyles")) return;
+  const s=document.createElement("style");
+  s.id="authStyles";
+  s.textContent=`
+    body.auth-locked > *:not(#authScreen){visibility:hidden}
+    #authScreen{position:fixed;inset:0;z-index:99999;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,#eef8f1,#f7faf8);padding:20px;font-family:inherit}
+    .auth-card{width:min(430px,100%);box-sizing:border-box;background:#fff;border:1px solid #dce7df;border-radius:22px;padding:30px;box-shadow:0 18px 50px rgba(0,0,0,.10)}
+    .auth-brand{display:flex;align-items:center;gap:14px;margin-bottom:24px}
+    .auth-logo{width:52px;height:52px;border-radius:15px;display:grid;place-items:center;background:#e3f2e8;font-size:28px}
+    .auth-card h2{margin:0 0 6px;font-size:26px}
+    .auth-card p{margin:0;color:#6d7b73}
+    .auth-field{display:block;margin-top:17px;font-weight:600;font-size:14px}
+    .auth-field input{width:100%;box-sizing:border-box;margin-top:7px;padding:13px 14px;border:1px solid #cfdcd4;border-radius:11px;font-size:15px;outline:none}
+    .auth-field input:focus{border-color:#27784f;box-shadow:0 0 0 3px rgba(39,120,79,.10)}
+    .auth-password{position:relative}.auth-password input{padding-right:48px}
+    .auth-eye{position:absolute;right:9px;bottom:7px;border:0;background:transparent;cursor:pointer;font-size:18px;padding:7px}
+    .auth-submit{width:100%;margin-top:22px;border:0;border-radius:11px;padding:13px;background:#27784f;color:#fff;font-weight:700;font-size:15px;cursor:pointer}
+    .auth-submit:disabled{opacity:.65;cursor:wait}
+    .auth-error{display:none;margin-top:14px;padding:11px 12px;border-radius:10px;background:#fff0f0;color:#b42318;font-size:13px}
+    .auth-user{display:flex;align-items:center;gap:8px;margin-left:8px;color:#425248;font-size:13px}
+    .auth-user button{border:1px solid #d6e1da;background:#fff;border-radius:9px;padding:7px 10px;cursor:pointer}
+    @media(max-width:700px){.auth-card{padding:24px}.auth-user{display:none}}
+  `;
+  document.head.appendChild(s);
 }
 
-function fillFirebaseForm(){
-  const c=getFirebaseConfig(); if(!c)return;
-  $("fbApiKey").value=c.apiKey||"";
-  $("fbAuthDomain").value=c.authDomain||"";
-  $("fbProjectId").value=c.projectId||"";
-  $("fbStorageBucket").value=c.storageBucket||"";
-  $("fbMessagingSenderId").value=c.messagingSenderId||"";
-  $("fbAppId").value=c.appId||"";
+function createAuthScreen(){
+  injectAuthStyles();
+  if($("authScreen")) return;
+  const el=document.createElement("div");
+  el.id="authScreen";
+  el.innerHTML=`
+    <div class="auth-card">
+      <div class="auth-brand">
+        <div class="auth-logo">🌿</div>
+        <div><h2>Stok Bumbu</h2><p>Masuk untuk mengakses aplikasi</p></div>
+      </div>
+      <form id="loginForm">
+        <label class="auth-field">Email
+          <input id="loginEmail" type="email" autocomplete="username" placeholder="nama@email.com" required>
+        </label>
+        <label class="auth-field auth-password">Password
+          <input id="loginPassword" type="password" autocomplete="current-password" placeholder="Masukkan password" required>
+          <button class="auth-eye" id="togglePassword" type="button" aria-label="Tampilkan password">👁️</button>
+        </label>
+        <div class="auth-error" id="loginError"></div>
+        <button class="auth-submit" id="loginSubmit" type="submit">🔐 Masuk</button>
+      </form>
+    </div>`;
+  document.body.appendChild(el);
+
+  $("togglePassword").onclick=()=>{
+    const p=$("loginPassword");
+    p.type=p.type==="password"?"text":"password";
+    $("togglePassword").textContent=p.type==="password"?"👁️":"🙈";
+  };
 }
 
-async function enableFirebase(config){
+function setLoginError(msg){
+  const el=$("loginError"); if(!el)return;
+  el.textContent=msg||""; el.style.display=msg?"block":"none";
+}
+
+function showAuthScreen(show){
+  createAuthScreen();
+  $("authScreen").style.display=show?"flex":"none";
+  document.body.classList.toggle("auth-locked",show);
+}
+
+function addUserControls(){
+  const top=document.querySelector(".top-actions");
+  if(!top || $("authUserBox")) return;
+  const box=document.createElement("div");
+  box.className="auth-user"; box.id="authUserBox";
+  box.innerHTML=`<span id="authUserEmail"></span><button id="logoutBtn" type="button">🚪 Keluar</button>`;
+  top.prepend(box);
+  $("logoutBtn").onclick=async()=>{
+    try{
+      const {signOut}=await import("https://www.gstatic.com/firebasejs/12.2.1/firebase-auth.js");
+      await signOut(cloud.auth);
+    }catch(err){console.error(err);showToast("Gagal keluar.");}
+  };
+}
+
+async function startFirestore(user){
   try{
-    const {initializeApp, getApps} = await import("https://www.gstatic.com/firebasejs/12.2.1/firebase-app.js");
-    const {getFirestore, doc, getDoc, setDoc, onSnapshot} = await import("https://www.gstatic.com/firebasejs/12.2.1/firebase-firestore.js");
-    cloud.app = getApps().length ? getApps()[0] : initializeApp(config);
-    cloud.db = getFirestore(cloud.app);
-    cloud.enabled=true;
-    localStorage.setItem(FIREBASE_CONFIG_KEY, JSON.stringify(config));
+    const {getFirestore,doc,getDoc,setDoc,onSnapshot}=await import("https://www.gstatic.com/firebasejs/12.2.1/firebase-firestore.js");
+    cloud.db=getFirestore(cloud.app); cloud.enabled=true;
     setSyncStatus("🟢 Cloud aktif","online");
 
     const ref=doc(cloud.db,"stokBumbuDapur","main");
     const snap=await getDoc(ref);
+
     if(snap.exists()){
       const remote=snap.data();
       if(Array.isArray(remote.bumbu)&&Array.isArray(remote.transaksi)){
@@ -204,11 +283,11 @@ async function enableFirebase(config){
         renderAll();
       }
     }else{
-      await setDoc(ref,{...db,updatedAt:Date.now()});
+      await setDoc(ref,{...db,updatedAt:Date.now(),updatedBy:user.uid});
     }
 
     if(cloud.unsub) cloud.unsub();
-    cloud.unsub=onSnapshot(ref,(s)=>{
+    cloud.unsub=onSnapshot(ref,s=>{
       if(!s.exists())return;
       const remote=s.data();
       if(Array.isArray(remote.bumbu)&&Array.isArray(remote.transaksi)){
@@ -216,24 +295,73 @@ async function enableFirebase(config){
         localStorage.setItem(STORAGE_KEY,JSON.stringify(db));
         renderAll();
       }
-    },(err)=>{
+    },err=>{
       console.error(err); setSyncStatus("🔴 Cloud error","error");
-      showToast("Gagal membaca Cloud. Periksa konfigurasi Firebase.");
+      showToast("Gagal membaca Cloud. Periksa Security Rules.");
     });
-    showToast("Sinkronisasi multi-device aktif.");
+
+    showToast("Login berhasil. Sinkronisasi aktif.");
+  }catch(err){
+    console.error(err); cloud.enabled=false; cloud.db=null;
+    setSyncStatus("🔴 Cloud error","error");
+    showToast("Login berhasil, tetapi Firestore gagal diakses.");
+  }
+}
+
+async function initFirebaseAuth(){
+  try{
+    const {initializeApp,getApps}=await import("https://www.gstatic.com/firebasejs/12.2.1/firebase-app.js");
+    const {getAuth,onAuthStateChanged,signInWithEmailAndPassword}=await import("https://www.gstatic.com/firebasejs/12.2.1/firebase-auth.js");
+
+    cloud.app=getApps().length?getApps()[0]:initializeApp(FIREBASE_CONFIG);
+    cloud.auth=getAuth(cloud.app);
+    createAuthScreen();
+
+    $("loginForm").onsubmit=async e=>{
+      e.preventDefault(); setLoginError("");
+      const btn=$("loginSubmit"); btn.disabled=true; btn.textContent="⏳ Memproses...";
+      try{
+        await signInWithEmailAndPassword(cloud.auth,$("loginEmail").value.trim(),$("loginPassword").value);
+      }catch(err){
+        console.error(err);
+        const messages={
+          "auth/invalid-credential":"Email atau password salah.",
+          "auth/invalid-email":"Format email tidak valid.",
+          "auth/user-disabled":"Akun ini dinonaktifkan.",
+          "auth/too-many-requests":"Terlalu banyak percobaan. Coba lagi beberapa saat."
+        };
+        setLoginError(messages[err?.code]||"Login gagal. Periksa email dan password.");
+      }finally{
+        btn.disabled=false; btn.textContent="🔐 Masuk";
+      }
+    };
+
+    onAuthStateChanged(cloud.auth,async user=>{
+      authUser=user;
+      if(user){
+        showAuthScreen(false);
+        addUserControls();
+        $("authUserEmail").textContent=user.email||"Pengguna";
+        await startFirestore(user);
+      }else{
+        if(cloud.unsub){cloud.unsub();cloud.unsub=null;}
+        cloud.enabled=false; cloud.db=null;
+        setSyncStatus("🔒 Login diperlukan","local");
+        showAuthScreen(true);
+      }
+    });
   }catch(err){
     console.error(err);
-    cloud.enabled=false;
-    setSyncStatus("🟡 Lokal","local");
-    showToast("Firebase gagal diaktifkan. Periksa konfigurasi.");
+    showAuthScreen(true);
+    setLoginError("Firebase Authentication gagal dimuat. Periksa koneksi internet.");
   }
 }
 
 async function cloudSave(){
-  if(!cloud.enabled || !cloud.db)return;
+  if(!cloud.enabled||!cloud.db||!authUser)return;
   try{
     const {doc,setDoc}=await import("https://www.gstatic.com/firebasejs/12.2.1/firebase-firestore.js");
-    await setDoc(doc(cloud.db,"stokBumbuDapur","main"),{...db,updatedAt:Date.now()});
+    await setDoc(doc(cloud.db,"stokBumbuDapur","main"),{...db,updatedAt:Date.now(),updatedBy:authUser.uid});
     setSyncStatus("🟢 Tersinkron","online");
   }catch(err){
     console.error(err); setSyncStatus("🔴 Belum tersimpan","error");
@@ -241,27 +369,24 @@ async function cloudSave(){
   }
 }
 
-function useLocalMode(){
-  if(cloud.unsub){cloud.unsub();cloud.unsub=null;}
-  cloud.enabled=false; cloud.db=null;
-  setSyncStatus("🟡 Lokal","local");
-  showToast("Mode lokal aktif.");
+function fillFirebaseForm(){
+  const c=FIREBASE_CONFIG;
+  if($("fbApiKey"))$("fbApiKey").value=c.apiKey||"";
+  if($("fbAuthDomain"))$("fbAuthDomain").value=c.authDomain||"";
+  if($("fbProjectId"))$("fbProjectId").value=c.projectId||"";
+  if($("fbStorageBucket"))$("fbStorageBucket").value=c.storageBucket||"";
+  if($("fbMessagingSenderId"))$("fbMessagingSenderId").value=c.messagingSenderId||"";
+  if($("fbAppId"))$("fbAppId").value=c.appId||"";
 }
 
-$("firebaseForm").onsubmit=async e=>{
+function useLocalMode(){
+  showToast("Mode lokal dinonaktifkan. Silakan login untuk menggunakan aplikasi.");
+  showAuthScreen(true);
+}
+
+$("firebaseForm").onsubmit=e=>{
   e.preventDefault();
-  const config={
-    apiKey:$("fbApiKey").value.trim(),
-    authDomain:$("fbAuthDomain").value.trim(),
-    projectId:$("fbProjectId").value.trim(),
-    storageBucket:$("fbStorageBucket").value.trim(),
-    messagingSenderId:$("fbMessagingSenderId").value.trim(),
-    appId:$("fbAppId").value.trim()
-  };
-  if(!config.apiKey||!config.projectId||!config.appId){
-    showToast("API Key, Project ID, dan App ID wajib diisi."); return;
-  }
-  await enableFirebase(config);
+  showToast("Konfigurasi Firebase sudah tersimpan di aplikasi.");
 };
 $("useLocalBtn").onclick=useLocalMode;
 
@@ -296,13 +421,11 @@ $("exportCsvBtn").onclick=exportReportCsv;
 $("printReportBtn").onclick=()=>window.print();
 
 /* ===================== BOOTSTRAP ===================== */
-function initCloud(){
-  fillFirebaseForm();
-  const c=getFirebaseConfig();
-  if(c) enableFirebase(c);
-}
-
 $("reportFrom").value=today;
 $("reportTo").value=today;
 renderAll();
-initCloud();
+fillFirebaseForm();
+injectAuthStyles();
+createAuthScreen();
+showAuthScreen(true);
+initFirebaseAuth();
