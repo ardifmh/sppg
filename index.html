@@ -3,188 +3,1180 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Stok Bumbu Dapur</title>
+  <title>Stok Bumbu Dapur V2</title>
   <link rel="stylesheet" href="style.css">
 </head>
+
 <body>
-  <div class="app-shell">
-    <aside class="sidebar">
-      <div class="brand">
-        <div class="brand-icon">🌿</div>
-        <div>
-          <h1>Stok Bumbu</h1>
-          <span>Dapur Manager</span>
-        </div>
+
+<div class="app-shell">
+
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+
+    <div class="brand">
+      <div class="brand-icon">🌿</div>
+
+      <div>
+        <h1>Stok Bumbu</h1>
+        <span>Dapur Manager</span>
       </div>
-
-      <nav>
-        <button class="nav-item active" data-page="dashboard">🏠 <span>Dashboard</span></button>
-        <button class="nav-item" data-page="master">🧂 <span>Master Bumbu</span></button>
-        <button class="nav-item" data-page="masuk">📥 <span>Stok Masuk</span></button>
-        <button class="nav-item" data-page="keluar">📤 <span>Stok Keluar</span></button>
-        <button class="nav-item" data-page="riwayat">📋 <span>Riwayat</span></button>
-      </nav>
-
-      <div class="sidebar-bottom">
-        <button class="side-action" id="backupBtn">💾 Backup Data</button>
-        <label class="side-action file-label">📂 Restore Data
-          <input type="file" id="restoreInput" accept=".json">
-        </label>
-        <button class="side-action danger" id="resetBtn">♻️ Reset Semua Data</button>
-      </div>
-    </aside>
-
-    <main class="main">
-      <header class="topbar">
-        <div>
-          <button class="mobile-menu" id="mobileMenu">☰</button>
-          <h2 id="pageTitle">Dashboard</h2>
-          <p>Kelola persediaan bumbu dapur dengan mudah.</p>
-        </div>
-        <div class="top-actions">
-          <span class="sync-status" id="syncStatus">🟡 Lokal</span>
-          <button class="btn btn-light" id="quickMasuk">＋ Stok Masuk</button>
-          <button class="btn btn-primary" id="quickKeluar">− Stok Keluar</button>
-        </div>
-      </header>
-
-      <section id="dashboard" class="page active">
-        <div class="cards">
-          <div class="stat-card"><div class="stat-icon green">🧂</div><div><span>Jenis Bumbu</span><strong id="totalJenis">0</strong></div></div>
-          <div class="stat-card"><div class="stat-icon blue">📦</div><div><span>Total Stok</span><strong id="totalStok">0</strong></div></div>
-          <div class="stat-card"><div class="stat-icon orange">📥</div><div><span>Stok Masuk</span><strong id="totalMasuk">0</strong></div></div>
-          <div class="stat-card"><div class="stat-icon red">📤</div><div><span>Stok Keluar</span><strong id="totalKeluar">0</strong></div></div>
-        </div>
-
-        <div class="grid-2">
-          <div class="panel">
-            <div class="panel-head"><div><h3>Status Stok</h3><p>Perhatian untuk bumbu yang mendekati batas minimum.</p></div><button class="btn btn-small" data-page="master">Lihat Semua</button></div>
-            <div id="stockAlert"></div>
-          </div>
-          <div class="panel">
-            <div class="panel-head"><div><h3>Transaksi Terbaru</h3><p>Aktivitas stok terakhir.</p></div><button class="btn btn-small" data-page="riwayat">Riwayat</button></div>
-            <div id="recentTransactions"></div>
-          </div>
-        </div>
-      </section>
-
-      <section id="master" class="page">
-        <div class="panel">
-          <div class="panel-head">
-            <div><h3>Master Bumbu</h3><p>Daftar seluruh bumbu yang dikelola.</p></div>
-            <button class="btn btn-primary" id="addBumbuBtn">＋ Tambah Bumbu</button>
-          </div>
-          <div class="toolbar"><input class="search" id="masterSearch" placeholder="🔎 Cari kode atau nama bumbu..."></div>
-          <div class="table-wrap"><table><thead><tr><th>Kode</th><th>Nama Bumbu</th><th>Satuan</th><th>Min. Stok</th><th>Stok Saat Ini</th><th>Status</th><th>Aksi</th></tr></thead><tbody id="masterBody"></tbody></table></div>
-        </div>
-      </section>
-
-      <section id="masuk" class="page">
-        <div class="panel form-panel">
-          <div class="panel-head"><div><h3>Input Stok Masuk</h3><p>Tambahkan stok bumbu yang masuk.</p></div></div>
-          <form id="masukForm" class="form-grid">
-            <label>Tanggal<input type="date" id="masukTanggal" required></label>
-            <label>Kode Bumbu<input list="kodeList" id="masukKode" placeholder="Contoh: BMB001" required></label>
-            <label>Nama Bumbu<input id="masukNama" readonly placeholder="Nama otomatis"></label>
-            <label>Jumlah<input type="number" id="masukJumlah" min="0.01" step="0.01" required></label>
-            <label>Satuan<input id="masukSatuan" readonly placeholder="Otomatis"></label>
-            <label>Keterangan<input id="masukKeterangan" placeholder="Opsional"></label>
-            <div class="form-actions"><button type="reset" class="btn btn-light">Batal</button><button class="btn btn-primary">Simpan Stok Masuk</button></div>
-          </form>
-        </div>
-      </section>
-
-      <section id="keluar" class="page">
-        <div class="panel form-panel">
-          <div class="panel-head"><div><h3>Input Stok Keluar</h3><p>Catat penggunaan atau pengeluaran bumbu.</p></div></div>
-          <form id="keluarForm" class="form-grid">
-            <label>Tanggal<input type="date" id="keluarTanggal" required></label>
-            <label>Kode Bumbu<input list="kodeList" id="keluarKode" placeholder="Contoh: BMB001" required></label>
-            <label>Nama Bumbu<input id="keluarNama" readonly placeholder="Nama otomatis"></label>
-            <label>Jumlah<input type="number" id="keluarJumlah" min="0.01" step="0.01" required></label>
-            <label>Satuan<input id="keluarSatuan" readonly placeholder="Otomatis"></label>
-            <label>Keterangan<input id="keluarKeterangan" placeholder="Opsional"></label>
-            <div class="form-actions"><button type="reset" class="btn btn-light">Batal</button><button class="btn btn-primary">Simpan Stok Keluar</button></div>
-          </form>
-        </div>
-      </section>
-
-      <section id="laporan" class="page">
-        <div class="panel">
-          <div class="panel-head">
-            <div><h3>Laporan Stok</h3><p>Ringkasan stok dan pergerakan berdasarkan periode.</p></div>
-            <div class="top-actions">
-              <button class="btn btn-light" id="exportCsvBtn">📥 Export CSV</button>
-              <button class="btn btn-light" id="printReportBtn">🖨️ Cetak</button>
-            </div>
-          </div>
-          <div class="toolbar filters">
-            <label class="report-field">Dari<input type="date" id="reportFrom"></label>
-            <label class="report-field">Sampai<input type="date" id="reportTo"></label>
-            <button class="btn btn-primary" id="generateReportBtn">Tampilkan</button>
-          </div>
-          <div class="table-wrap">
-            <table><thead><tr><th>Kode</th><th>Bumbu</th><th>Satuan</th><th>Stok Saat Ini</th><th>Masuk Periode</th><th>Keluar Periode</th><th>Status</th></tr></thead>
-            <tbody id="reportBody"></tbody></table>
-          </div>
-        </div>
-      </section>
-
-      <section id="pengaturan" class="page">
-        <div class="panel form-panel">
-          <div class="panel-head"><div><h3>Sinkronisasi Multi-Device</h3><p>Hubungkan aplikasi ke Firebase Firestore agar data dapat digunakan bersama dari laptop, HP, dan perangkat lain.</p></div></div>
-          <div class="cloud-note">
-            <strong>Catatan:</strong> GitHub Pages hanya menyimpan file aplikasi. Data multi-device disimpan di Firestore.
-            Untuk keamanan, gunakan Firebase Authentication sebelum aplikasi dipakai publik.
-          </div>
-          <form id="firebaseForm" class="form-grid">
-            <label>API Key<input id="fbApiKey" autocomplete="off"></label>
-            <label>Auth Domain<input id="fbAuthDomain" placeholder="project-id.firebaseapp.com"></label>
-            <label>Project ID<input id="fbProjectId" required></label>
-            <label>Storage Bucket<input id="fbStorageBucket" placeholder="project-id.appspot.com"></label>
-            <label>Messaging Sender ID<input id="fbMessagingSenderId"></label>
-            <label>App ID<input id="fbAppId" required></label>
-            <div class="form-actions">
-              <button type="button" class="btn btn-light" id="useLocalBtn">Gunakan Lokal</button>
-              <button type="submit" class="btn btn-primary">☁️ Aktifkan Cloud</button>
-            </div>
-          </form>
-        </div>
-      </section>
-
-      <section id="riwayat" class="page">
-        <div class="panel">
-          <div class="panel-head"><div><h3>Riwayat Transaksi</h3><p>Semua pergerakan stok masuk dan keluar.</p></div></div>
-          <div class="toolbar filters">
-            <input class="search" id="historySearch" placeholder="🔎 Cari kode, nama, atau keterangan...">
-            <select id="historyType"><option value="">Semua transaksi</option><option value="masuk">Stok Masuk</option><option value="keluar">Stok Keluar</option></select>
-          </div>
-          <div class="table-wrap"><table><thead><tr><th>Tanggal</th><th>Jenis</th><th>Kode</th><th>Nama Bumbu</th><th>Jumlah</th><th>Satuan</th><th>Keterangan</th><th>Aksi</th></tr></thead><tbody id="historyBody"></tbody></table></div>
-        </div>
-      </section>
-    </main>
-  </div>
-
-  <datalist id="kodeList"></datalist>
-
-  <div class="modal-backdrop" id="modalBackdrop">
-    <div class="modal">
-      <div class="modal-head"><h3 id="modalTitle">Tambah Bumbu</h3><button class="close" id="closeModal">×</button></div>
-      <form id="bumbuForm">
-        <input type="hidden" id="editId">
-        <label>Kode Bumbu<input id="bumbuKode" required maxlength="30" placeholder="BMB001"></label>
-        <label>Nama Bumbu<input id="bumbuNama" required placeholder="Bawang Merah"></label>
-        <div class="two-col">
-          <label>Satuan<select id="bumbuSatuan"><option>Kg</option><option>Gram</option><option>Liter</option><option>Botol</option><option>Pack</option><option>Dus</option><option>Pcs</option></select></label>
-          <label>Stok Minimum<input type="number" id="bumbuMin" min="0" step="0.01" value="1" required></label>
-        </div>
-        <label>Stok Awal<input type="number" id="bumbuStok" min="0" step="0.01" value="0" required></label>
-        <div class="form-actions"><button type="button" class="btn btn-light" id="cancelModal">Batal</button><button class="btn btn-primary">Simpan</button></div>
-      </form>
     </div>
+
+    <nav>
+
+      <button class="nav-item active" data-page="dashboard">
+        🏠 <span>Dashboard</span>
+      </button>
+
+      <button class="nav-item" data-page="master">
+        🧂 <span>Master Bumbu</span>
+      </button>
+
+      <button class="nav-item" data-page="masuk">
+        📥 <span>Stok Masuk</span>
+      </button>
+
+      <button class="nav-item" data-page="keluar">
+        📤 <span>Stok Keluar</span>
+      </button>
+
+      <button class="nav-item" data-page="riwayat">
+        📋 <span>Riwayat</span>
+      </button>
+
+      <!-- MENU BARU -->
+      <button class="nav-item" data-page="laporan">
+        📊 <span>Laporan</span>
+      </button>
+
+      <!-- MENU FIREBASE -->
+      <button class="nav-item" data-page="pengaturan">
+        ☁️ <span>Cloud / Multi-Device</span>
+      </button>
+
+    </nav>
+
+    <!-- SIDEBAR BOTTOM -->
+    <div class="sidebar-bottom">
+
+      <button class="side-action" id="backupBtn">
+        💾 Backup Data
+      </button>
+
+      <label class="side-action file-label">
+        📂 Restore Data
+
+        <input
+          type="file"
+          id="restoreInput"
+          accept=".json"
+        >
+      </label>
+
+      <button class="side-action danger" id="resetBtn">
+        ♻️ Reset Semua Data
+      </button>
+
+    </div>
+
+  </aside>
+
+
+  <!-- MAIN -->
+  <main class="main">
+
+    <!-- TOP BAR -->
+    <header class="topbar">
+
+      <div>
+
+        <button
+          class="mobile-menu"
+          id="mobileMenu"
+          type="button"
+        >
+          ☰
+        </button>
+
+        <h2 id="pageTitle">
+          Dashboard
+        </h2>
+
+        <p>
+          Kelola persediaan bumbu dapur dengan mudah.
+        </p>
+
+      </div>
+
+
+      <div class="top-actions">
+
+        <!-- STATUS CLOUD -->
+        <span
+          class="sync-status"
+          id="syncStatus"
+        >
+          🟡 Lokal
+        </span>
+
+        <button
+          class="btn btn-light"
+          id="quickMasuk"
+          type="button"
+        >
+          ＋ Stok Masuk
+        </button>
+
+        <button
+          class="btn btn-primary"
+          id="quickKeluar"
+          type="button"
+        >
+          − Stok Keluar
+        </button>
+
+      </div>
+
+    </header>
+
+
+    <!-- ===================================================== -->
+    <!-- DASHBOARD -->
+    <!-- ===================================================== -->
+
+    <section
+      id="dashboard"
+      class="page active"
+    >
+
+      <div class="cards">
+
+        <div class="stat-card">
+
+          <div class="stat-icon green">
+            🧂
+          </div>
+
+          <div>
+            <span>Jenis Bumbu</span>
+            <strong id="totalJenis">
+              0
+            </strong>
+          </div>
+
+        </div>
+
+
+        <div class="stat-card">
+
+          <div class="stat-icon blue">
+            📦
+          </div>
+
+          <div>
+            <span>Total Stok</span>
+            <strong id="totalStok">
+              0
+            </strong>
+          </div>
+
+        </div>
+
+
+        <div class="stat-card">
+
+          <div class="stat-icon orange">
+            📥
+          </div>
+
+          <div>
+            <span>Stok Masuk</span>
+            <strong id="totalMasuk">
+              0
+            </strong>
+          </div>
+
+        </div>
+
+
+        <div class="stat-card">
+
+          <div class="stat-icon red">
+            📤
+          </div>
+
+          <div>
+            <span>Stok Keluar</span>
+            <strong id="totalKeluar">
+              0
+            </strong>
+          </div>
+
+        </div>
+
+      </div>
+
+
+      <div class="grid-2">
+
+        <!-- STATUS STOK -->
+
+        <div class="panel">
+
+          <div class="panel-head">
+
+            <div>
+
+              <h3>
+                Status Stok
+              </h3>
+
+              <p>
+                Perhatian untuk bumbu yang mendekati batas minimum.
+              </p>
+
+            </div>
+
+            <button
+              class="btn btn-small"
+              data-page="master"
+              type="button"
+            >
+              Lihat Semua
+            </button>
+
+          </div>
+
+          <div id="stockAlert"></div>
+
+        </div>
+
+
+        <!-- TRANSAKSI TERBARU -->
+
+        <div class="panel">
+
+          <div class="panel-head">
+
+            <div>
+
+              <h3>
+                Transaksi Terbaru
+              </h3>
+
+              <p>
+                Aktivitas stok terakhir.
+              </p>
+
+            </div>
+
+            <button
+              class="btn btn-small"
+              data-page="riwayat"
+              type="button"
+            >
+              Riwayat
+            </button>
+
+          </div>
+
+          <div id="recentTransactions"></div>
+
+        </div>
+
+      </div>
+
+    </section>
+
+
+    <!-- ===================================================== -->
+    <!-- MASTER BUMBU -->
+    <!-- ===================================================== -->
+
+    <section
+      id="master"
+      class="page"
+    >
+
+      <div class="panel">
+
+        <div class="panel-head">
+
+          <div>
+
+            <h3>
+              Master Bumbu
+            </h3>
+
+            <p>
+              Daftar seluruh bumbu yang dikelola.
+            </p>
+
+          </div>
+
+          <button
+            class="btn btn-primary"
+            id="addBumbuBtn"
+            type="button"
+          >
+            ＋ Tambah Bumbu
+          </button>
+
+        </div>
+
+
+        <div class="toolbar">
+
+          <input
+            class="search"
+            id="masterSearch"
+            type="search"
+            placeholder="🔎 Cari kode atau nama bumbu..."
+          >
+
+        </div>
+
+
+        <div class="table-wrap">
+
+          <table>
+
+            <thead>
+
+              <tr>
+
+                <th>Kode</th>
+                <th>Nama Bumbu</th>
+                <th>Satuan</th>
+                <th>Min. Stok</th>
+                <th>Stok Saat Ini</th>
+                <th>Status</th>
+                <th>Aksi</th>
+
+              </tr>
+
+            </thead>
+
+            <tbody id="masterBody"></tbody>
+
+          </table>
+
+        </div>
+
+      </div>
+
+    </section>
+
+
+    <!-- ===================================================== -->
+    <!-- STOK MASUK -->
+    <!-- ===================================================== -->
+
+    <section
+      id="masuk"
+      class="page"
+    >
+
+      <div class="panel form-panel">
+
+        <div class="panel-head">
+
+          <div>
+
+            <h3>
+              Input Stok Masuk
+            </h3>
+
+            <p>
+              Tambahkan stok bumbu yang masuk.
+            </p>
+
+          </div>
+
+        </div>
+
+
+        <form
+          id="masukForm"
+          class="form-grid"
+        >
+
+          <label>
+
+            Tanggal
+
+            <input
+              type="date"
+              id="masukTanggal"
+              required
+            >
+
+          </label>
+
+
+          <label>
+
+            Kode Bumbu
+
+            <input
+              list="kodeList"
+              id="masukKode"
+              placeholder="Contoh: BMB001"
+              autocomplete="off"
+              required
+            >
+
+          </label>
+
+
+          <label>
+
+            Nama Bumbu
+
+            <input
+              id="masukNama"
+              readonly
+              placeholder="Nama otomatis"
+            >
+
+          </label>
+
+
+          <label>
+
+            Jumlah
+
+            <input
+              type="number"
+              id="masukJumlah"
+              min="0.01"
+              step="0.01"
+              placeholder="0"
+              required
+            >
+
+          </label>
+
+
+          <label>
+
+            Satuan
+
+            <input
+              id="masukSatuan"
+              readonly
+              placeholder="Otomatis"
+            >
+
+          </label>
+
+
+          <label>
+
+            Keterangan
+
+            <input
+              id="masukKeterangan"
+              placeholder="Opsional"
+            >
+
+          </label>
+
+
+          <div class="form-actions">
+
+            <button
+              type="reset"
+              class="btn btn-light"
+            >
+              Batal
+            </button>
+
+            <button
+              type="submit"
+              class="btn btn-primary"
+            >
+              Simpan Stok Masuk
+            </button>
+
+          </div>
+
+        </form>
+
+      </div>
+
+    </section>
+
+
+    <!-- ===================================================== -->
+    <!-- STOK KELUAR -->
+    <!-- ===================================================== -->
+
+    <section
+      id="keluar"
+      class="page"
+    >
+
+      <div class="panel form-panel">
+
+        <div class="panel-head">
+
+          <div>
+
+            <h3>
+              Input Stok Keluar
+            </h3>
+
+            <p>
+              Catat penggunaan atau pengeluaran bumbu.
+            </p>
+
+          </div>
+
+        </div>
+
+
+        <form
+          id="keluarForm"
+          class="form-grid"
+        >
+
+          <label>
+
+            Tanggal
+
+            <input
+              type="date"
+              id="keluarTanggal"
+              required
+            >
+
+          </label>
+
+
+          <label>
+
+            Kode Bumbu
+
+            <input
+              list="kodeList"
+              id="keluarKode"
+              placeholder="Contoh: BMB001"
+              autocomplete="off"
+              required
+            >
+
+          </label>
+
+
+          <label>
+
+            Nama Bumbu
+
+            <input
+              id="keluarNama"
+              readonly
+              placeholder="Nama otomatis"
+            >
+
+          </label>
+
+
+          <label>
+
+            Jumlah
+
+            <input
+              type="number"
+              id="keluarJumlah"
+              min="0.01"
+              step="0.01"
+              placeholder="0"
+              required
+            >
+
+          </label>
+
+
+          <label>
+
+            Satuan
+
+            <input
+              id="keluarSatuan"
+              readonly
+              placeholder="Otomatis"
+            >
+
+          </label>
+
+
+          <label>
+
+            Keterangan
+
+            <input
+              id="keluarKeterangan"
+              placeholder="Opsional"
+            >
+
+          </label>
+
+
+          <div class="form-actions">
+
+            <button
+              type="reset"
+              class="btn btn-light"
+            >
+              Batal
+            </button>
+
+            <button
+              type="submit"
+              class="btn btn-primary"
+            >
+              Simpan Stok Keluar
+            </button>
+
+          </div>
+
+        </form>
+
+      </div>
+
+    </section>
+
+
+    <!-- ===================================================== -->
+    <!-- RIWAYAT -->
+    <!-- ===================================================== -->
+
+    <section
+      id="riwayat"
+      class="page"
+    >
+
+      <div class="panel">
+
+        <div class="panel-head">
+
+          <div>
+
+            <h3>
+              Riwayat Transaksi
+            </h3>
+
+            <p>
+              Semua pergerakan stok masuk dan keluar.
+            </p>
+
+          </div>
+
+        </div>
+
+
+        <div class="toolbar filters">
+
+          <input
+            class="search"
+            id="historySearch"
+            type="search"
+            placeholder="🔎 Cari kode, nama, atau keterangan..."
+          >
+
+
+          <select id="historyType">
+
+            <option value="">
+              Semua transaksi
+            </option>
+
+            <option value="masuk">
+              Stok Masuk
+            </option>
+
+            <option value="keluar">
+              Stok Keluar
+            </option>
+
+          </select>
+
+        </div>
+
+
+        <div class="table-wrap">
+
+          <table>
+
+            <thead>
+
+              <tr>
+
+                <th>Tanggal</th>
+                <th>Jenis</th>
+                <th>Kode</th>
+                <th>Nama Bumbu</th>
+                <th>Jumlah</th>
+                <th>Satuan</th>
+                <th>Keterangan</th>
+                <th>Aksi</th>
+
+              </tr>
+
+            </thead>
+
+            <tbody id="historyBody"></tbody>
+
+          </table>
+
+        </div>
+
+      </div>
+
+    </section>
+
+
+    <!-- ===================================================== -->
+    <!-- LAPORAN -->
+    <!-- ===================================================== -->
+
+    <section
+      id="laporan"
+      class="page"
+    >
+
+      <div class="panel">
+
+        <div class="panel-head">
+
+          <div>
+
+            <h3>
+              Laporan Stok
+            </h3>
+
+            <p>
+              Ringkasan stok dan pergerakan berdasarkan periode.
+            </p>
+
+          </div>
+
+
+          <div class="top-actions">
+
+            <button
+              class="btn btn-light"
+              id="exportCsvBtn"
+              type="button"
+            >
+              📥 Export CSV
+            </button>
+
+            <button
+              class="btn btn-light"
+              id="printReportBtn"
+              type="button"
+            >
+              🖨️ Cetak
+            </button>
+
+          </div>
+
+        </div>
+
+
+        <div class="toolbar filters">
+
+          <label class="report-field">
+
+            Dari
+
+            <input
+              type="date"
+              id="reportFrom"
+            >
+
+          </label>
+
+
+          <label class="report-field">
+
+            Sampai
+
+            <input
+              type="date"
+              id="reportTo"
+            >
+
+          </label>
+
+
+          <button
+            class="btn btn-primary"
+            id="generateReportBtn"
+            type="button"
+          >
+            Tampilkan
+          </button>
+
+        </div>
+
+
+        <div class="table-wrap">
+
+          <table>
+
+            <thead>
+
+              <tr>
+
+                <th>Kode</th>
+                <th>Bumbu</th>
+                <th>Satuan</th>
+                <th>Stok Saat Ini</th>
+                <th>Masuk Periode</th>
+                <th>Keluar Periode</th>
+                <th>Status</th>
+
+              </tr>
+
+            </thead>
+
+            <tbody id="reportBody"></tbody>
+
+          </table>
+
+        </div>
+
+      </div>
+
+    </section>
+
+
+    <!-- ===================================================== -->
+    <!-- CLOUD / MULTI DEVICE -->
+    <!-- ===================================================== -->
+
+    <section
+      id="pengaturan"
+      class="page"
+    >
+
+      <div class="panel form-panel">
+
+        <div class="panel-head">
+
+          <div>
+
+            <h3>
+              Sinkronisasi Multi-Device
+            </h3>
+
+            <p>
+              Hubungkan aplikasi ke Firebase Firestore agar
+              data dapat digunakan bersama dari laptop, HP,
+              dan perangkat lain.
+            </p>
+
+          </div>
+
+        </div>
+
+
+        <div class="cloud-note">
+
+          <strong>Catatan:</strong>
+
+          GitHub Pages hanya menyimpan file aplikasi.
+          Data multi-device disimpan di Firestore.
+
+          <br><br>
+
+          Untuk penggunaan publik/produksi,
+          gunakan Firebase Authentication dan
+          Firestore Security Rules.
+
+        </div>
+
+
+        <form
+          id="firebaseForm"
+          class="form-grid"
+        >
+
+          <label>
+
+            API Key
+
+            <input
+              id="fbApiKey"
+              autocomplete="off"
+            >
+
+          </label>
+
+
+          <label>
+
+            Auth Domain
+
+            <input
+              id="fbAuthDomain"
+              placeholder="project-id.firebaseapp.com"
+            >
+
+          </label>
+
+
+          <label>
+
+            Project ID
+
+            <input
+              id="fbProjectId"
+              required
+            >
+
+          </label>
+
+
+          <label>
+
+            Storage Bucket
+
+            <input
+              id="fbStorageBucket"
+              placeholder="project-id.appspot.com"
+            >
+
+          </label>
+
+
+          <label>
+
+            Messaging Sender ID
+
+            <input
+              id="fbMessagingSenderId"
+            >
+
+          </label>
+
+
+          <label>
+
+            App ID
+
+            <input
+              id="fbAppId"
+              required
+            >
+
+          </label>
+
+
+          <div class="form-actions">
+
+            <button
+              type="button"
+              class="btn btn-light"
+              id="useLocalBtn"
+            >
+              Gunakan Lokal
+            </button>
+
+
+            <button
+              type="submit"
+              class="btn btn-primary"
+            >
+              ☁️ Aktifkan Cloud
+            </button>
+
+          </div>
+
+        </form>
+
+      </div>
+
+    </section>
+
+  </main>
+
+</div>
+
+
+<!-- ===================================================== -->
+<!-- DATALIST KODE BUMBU -->
+<!-- ===================================================== -->
+
+<datalist id="kodeList"></datalist>
+
+
+<!-- ===================================================== -->
+<!-- MODAL MASTER BUMBU -->
+<!-- ===================================================== -->
+
+<div
+  class="modal-backdrop"
+  id="modalBackdrop"
+>
+
+  <div class="modal">
+
+    <div class="modal-head">
+
+      <h3 id="modalTitle">
+        Tambah Bumbu
+      </h3>
+
+      <button
+        class="close"
+        id="closeModal"
+        type="button"
+      >
+        ×
+      </button>
+
+    </div>
+
+
+    <form id="bumbuForm">
+
+      <input
+        type="hidden"
+        id="editId"
+      >
+
+
+      <label>
+
+        Kode Bumbu
+
+        <input
+          id="bumbuKode"
+          required
+          maxlength="30"
+          placeholder="BMB001"
+        >
+
+      </label>
+
+
+      <label>
+
+        Nama Bumbu
+
+        <input
+          id="bumbuNama"
+          required
+          placeholder="Bawang Merah"
+        >
+
+      </label>
+
+
+      <div class="two-col">
+
+        <label>
+
+          Satuan
+
+          <select id="bumbuSatuan">
+
+            <option>Kg</option>
+            <option>Gram</option>
+            <option>Liter</option>
+            <option>Botol</option>
+            <option>Pack</option>
+            <option>Dus</option>
+            <option>Pcs</option>
+
+          </select>
+
+        </label>
+
+
+        <label>
+
+          Stok Minimum
+
+          <input
+            type="number"
+            id="bumbuMin"
+            min="0"
+            step="0.01"
+            value="1"
+            required
+          >
+
+        </label>
+
+      </div>
+
+
+      <label>
+
+        Stok Awal
+
+        <input
+          type="number"
+          id="bumbuStok"
+          min="0"
+          step="0.01"
+          value="0"
+          required
+        >
+
+      </label>
+
+
+      <div class="form-actions">
+
+        <button
+          type="button"
+          class="btn btn-light"
+          id="cancelModal"
+        >
+          Batal
+        </button>
+
+        <button
+          type="submit"
+          class="btn btn-primary"
+        >
+          Simpan
+        </button>
+
+      </div>
+
+    </form>
+
   </div>
 
-  <div class="toast" id="toast"></div>
-  <script type="module" src="app.js"></script>
+</div>
+
+
+<!-- ===================================================== -->
+<!-- TOAST -->
+<!-- ===================================================== -->
+
+<div
+  class="toast"
+  id="toast"
+></div>
+
+
+<!-- ===================================================== -->
+<!-- JAVASCRIPT -->
+<!-- ===================================================== -->
+
+<script
+  type="module"
+  src="app.js"
+></script>
+
 </body>
 </html>
