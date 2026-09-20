@@ -825,6 +825,23 @@ window.editReceivedTotal=async index=>{
   if(!Number.isFinite(target)||target<0)return alert("Jumlah tidak valid.");
   if(target>Number(item.qty||0))return alert(`Jumlah tidak boleh melebihi Qty PO (${fmt(Number(item.qty||0))} ${item.unit}).`);
 
+  const currentNote=(()=>{
+    let note="";
+    (bahan.receipts||[]).forEach(r=>{
+      if(String(r.poId)!==String(p.id))return;
+      (r.items||[]).forEach(ri=>{
+        const same=item.masterId!=null&&ri.masterId!=null
+          ?String(item.masterId)===String(ri.masterId)
+          :String(item.name||"").toLowerCase()===String(ri.name||"").toLowerCase();
+        if(same&&!ri.outsidePO)note=ri.keterangan||note;
+      });
+    });
+    return note;
+  })();
+  const noteValue=prompt(`Keterangan penerimaan ${item.name}:`,currentNote);
+  if(noteValue===null)return;
+  const newNote=noteValue.trim();
+
   const matches=[];
   (bahan.receipts||[]).forEach(r=>{
     if(String(r.poId)!==String(p.id))return;
@@ -837,12 +854,13 @@ window.editReceivedTotal=async index=>{
   });
   let diff=target-current;
   if(!matches.length && target>0){
-    bahan.receipts.push({id:Date.now(),poId:p.id,date:$('recvDate').value||today(),time:new Date().toLocaleTimeString('id-ID',{hour:'2-digit',minute:'2-digit'}),poNumber:p.number,supplier:p.supplier||'',status:'Sebagian',items:[{masterId:item.masterId,name:item.name,unit:item.unit,qty:target,receivedNow:target}]});
+    bahan.receipts.push({id:Date.now(),poId:p.id,date:$('recvDate').value||today(),time:new Date().toLocaleTimeString('id-ID',{hour:'2-digit',minute:'2-digit'}),poNumber:p.number,supplier:p.supplier||'',status:'Sebagian',items:[{masterId:item.masterId,name:item.name,unit:item.unit,qty:target,receivedNow:target,keterangan:newNote}]});
   }else{
     const last=matches[matches.length-1];
     last.ri.receivedNow=Math.max(0,last.qty+diff);
     last.ri.received=last.ri.receivedNow;
     last.ri.qty=last.ri.receivedNow;
+    last.ri.keterangan=newNote;
     if(last.ri.receivedNow===0)last.r.items.splice(last.riIndex,1);
     if(!last.r.items.length)bahan.receipts=bahan.receipts.filter(x=>x!==last.r);
   }
