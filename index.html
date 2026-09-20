@@ -444,8 +444,8 @@ button,input,select,textarea{font:inherit}.app{display:flex;min-height:100vh}.si
   </div>
   <div id="laporanBahan" style="display:none">
     <div class="panel">
-      <div class="panel-head"><div><h3>📈 Laporan Bahan Baku</h3><p>Rekap PO dan penerimaan berdasarkan periode. Bahan baku tidak masuk stok bumbu.</p></div><div class="form-actions"><button class="btn btn-light" onclick="printReport()">🖨️ Cetak</button><button class="btn btn-primary" onclick="exportReportCSV()">⬇️ CSV</button></div></div>
-      <div class="toolbar filters"><label>Dari<input type="date" id="reportFromBahan"></label><label>Sampai<input type="date" id="reportToBahan"></label><button class="btn btn-primary" id="reportFilterBahanBtn">Tampilkan</button></div>
+      <div class="panel-head"><div><h3>📈 Laporan Bahan Baku</h3><p>Rekap PO dan penerimaan berdasarkan <b>Tanggal Dibutuhkan</b>. Barang di luar PO ditampilkan berdasarkan tanggal penerimaannya.</p></div><div class="form-actions"><button class="btn btn-light" onclick="printReport()">🖨️ Cetak</button><button class="btn btn-primary" onclick="exportReportCSV()">⬇️ CSV</button></div></div>
+      <div class="toolbar filters"><label>Tanggal Dibutuhkan Dari<input type="date" id="reportFromBahan"></label><label>Tanggal Dibutuhkan Sampai<input type="date" id="reportToBahan"></label><button class="btn btn-primary" id="reportFilterBahanBtn">Tampilkan</button></div>
     </div>
     <div class="cards">
       <div class="stat-card"><div class="stat-icon">📝</div><div><span>Total PO</span><strong id="reportPO">0</strong></div></div>
@@ -455,6 +455,7 @@ button,input,select,textarea{font:inherit}.app{display:flex;min-height:100vh}.si
     </div>
     <div class="panel"><div class="panel-head"><div><h3>Daftar PO</h3><p id="reportBahanPeriod"></p></div></div><div class="table-wrap"><table><thead><tr><th>Tanggal</th><th>No. PO</th><th>Supplier</th><th>Tgl Dibutuhkan</th><th>Item</th><th>Status</th></tr></thead><tbody id="reportPOBody"></tbody></table></div></div>
     <div class="panel"><div class="panel-head"><div><h3>Daftar Penerimaan</h3><p>Rincian setiap barang yang masuk, termasuk barang di luar PO.</p></div></div><div class="table-wrap"><table><thead><tr><th>Tanggal</th><th>No. PO</th><th>Supplier</th><th>Item / Bahan</th><th>Jumlah Diterima</th><th>Satuan</th><th>Status</th><th>Keterangan</th></tr></thead><tbody id="reportReceiptBody"></tbody></table></div></div>
+    <div class="panel"><div class="panel-head"><div><h3>📦 Daftar Barang di Luar PO</h3><p>Barang yang diterima tetapi tidak tercantum dalam PO.</p></div></div><div class="table-wrap"><table><thead><tr><th>No</th><th>Tanggal</th><th>Referensi</th><th>Supplier</th><th>Item / Bahan</th><th>Jumlah</th><th>Satuan</th><th>Keterangan</th></tr></thead><tbody id="reportOutsidePOBody"></tbody></table></div></div>
   </div>
 </section>
 
@@ -1559,13 +1560,23 @@ function renderReport(){
     const masuk=rows.filter(x=>x.jenis==="masuk").reduce((s,x)=>s+Number(x.jumlah||0),0);
     const keluar=rows.filter(x=>x.jenis==="keluar").reduce((s,x)=>s+Number(x.jumlah||0),0);
     $("reportTotalTrans").textContent=rows.length; $("reportTotalMasuk").textContent=fmt(masuk); $("reportTotalKeluar").textContent=fmt(keluar); $("reportSelisih").textContent=fmt(masuk-keluar);
-    $("reportStockPeriod").textContent=`Periode ${from.split("-").reverse().join("-")} s/d ${to.split("-").reverse().join("-")}`;
+    $("reportStockPeriod").textContent=`Tanggal Dibutuhkan ${from.split("-").reverse().join("-")} s/d ${to.split("-").reverse().join("-")}`;
     $("reportStockBody").innerHTML=rows.length?rows.map(x=>`<tr><td>${esc(x.tanggal)}</td><td>${x.jenis==="masuk"?"📥 Masuk":"📤 Keluar"}</td><td>${esc(x.kode)}</td><td>${esc(x.nama)}</td><td>${fmt(x.jumlah)}</td><td>${esc(x.satuan)}</td><td>${esc(x.keterangan||"-")}</td></tr>`).join(""):`<tr><td colspan="7" class="empty">Tidak ada transaksi pada periode ini.</td></tr>`;
   }
   if(isBahan){
     const {from,to}=reportRange("reportBahan");
-    const pos=bahan.pos.filter(x=>x.date>=from&&x.date<=to).slice().sort((a,b)=>b.date.localeCompare(a.date));
-    const rec=bahan.receipts.filter(x=>x.date>=from&&x.date<=to).slice().sort((a,b)=>b.date.localeCompare(a.date));
+    // Filter laporan bahan baku berdasarkan Tanggal Dibutuhkan pada PO.
+    const pos=bahan.pos.filter(x=>{
+      const need=String(x.needDate||"");
+      return need>=from&&need<=to;
+    }).slice().sort((a,b)=>String(b.needDate||"").localeCompare(String(a.needDate||"")));
+    const selectedPOIds=new Set(pos.map(x=>String(x.id)));
+    // Penerimaan dari PO mengikuti Tanggal Dibutuhkan PO.
+    // Barang di luar PO tidak memiliki Tanggal Dibutuhkan, sehingga tetap difilter berdasarkan tanggal penerimaan.
+    const rec=bahan.receipts.filter(x=>{
+      if(x.poId==null) return x.date>=from&&x.date<=to;
+      return selectedPOIds.has(String(x.poId));
+    }).slice().sort((a,b)=>String(b.date||"").localeCompare(String(a.date||"")));
     const poItems=pos.reduce((s,x)=>s+(Array.isArray(x.items)?x.items.length:0),0);
     const receivedItems=rec.reduce((s,x)=>s+(Array.isArray(x.items)?x.items.reduce((q,i)=>q+Number(i.received||0),0):0),0);
     $("reportPO").textContent=pos.length; $("reportPOItems").textContent=poItems; $("reportReceipt").textContent=rec.length; $("reportReceivedItems").textContent=fmt(receivedItems);
@@ -1586,6 +1597,15 @@ function renderReport(){
       }
     });
     $("reportReceiptBody").innerHTML=receiptDetailRows.length?receiptDetailRows.join(""):`<tr><td colspan="8" class="empty">Tidak ada penerimaan pada periode ini.</td></tr>`;
+
+    const outsideRows=[];
+    rec.forEach(r=>(r.items||[]).forEach(i=>{
+      if((r.poId==null)||!!i.outsidePO){
+        const qty=Number(i.receivedNow ?? i.received ?? i.qty ?? 0)||0;
+        outsideRows.push(`<tr><td>${outsideRows.length+1}</td><td>${esc(r.date||"-")}</td><td>${esc(r.poNumber||"Di Luar PO")}</td><td>${esc(r.supplier||"-")}</td><td><b>${esc(i.name||"-")}</b></td><td>${fmt(qty)}</td><td>${esc(i.unit||"-")}</td><td><span class="badge warning">Tambahan</span></td></tr>`);
+      }
+    }));
+    $("reportOutsidePOBody").innerHTML=outsideRows.length?outsideRows.join(""):`<tr><td colspan="8" class="empty">Tidak ada barang di luar PO pada periode ini.</td></tr>`;
   }
 }
 window.printReport=()=>{
@@ -1605,11 +1625,18 @@ window.printReport=()=>{
     body=`<table><thead><tr><th>No</th><th>Tanggal</th><th>Jenis</th><th>Kode</th><th>Nama Bumbu</th><th>Jumlah</th><th>Satuan</th><th>Keterangan</th></tr></thead><tbody>${rows.length?rows.map((x,i)=>`<tr><td>${i+1}</td><td>${fmtDate(x.tanggal)}</td><td>${x.jenis==="masuk"?"📥 Masuk":"📤 Keluar"}</td><td>${esc(x.kode)}</td><td>${esc(x.nama)}</td><td class="num">${fmt(x.jumlah)}</td><td>${esc(x.satuan)}</td><td>${esc(x.keterangan||"-")}</td></tr>`).join(""):`<tr><td colspan="8" class="empty">Tidak ada transaksi pada periode ini.</td></tr>`}</tbody></table>`;
   }else{
     const {from,to}=reportRange("reportBahan");
-    const pos=bahan.pos.filter(x=>x.date>=from&&x.date<=to).slice().sort((a,b)=>b.date.localeCompare(a.date));
-    const rec=bahan.receipts.filter(x=>x.date>=from&&x.date<=to).slice().sort((a,b)=>b.date.localeCompare(a.date));
+    const pos=bahan.pos.filter(x=>{
+      const need=String(x.needDate||"");
+      return need>=from&&need<=to;
+    }).slice().sort((a,b)=>String(b.needDate||"").localeCompare(String(a.needDate||"")));
+    const selectedPOIds=new Set(pos.map(x=>String(x.id)));
+    const rec=bahan.receipts.filter(x=>{
+      if(x.poId==null) return x.date>=from&&x.date<=to;
+      return selectedPOIds.has(String(x.poId));
+    }).slice().sort((a,b)=>String(b.date||"").localeCompare(String(a.date||"")));
     const totalItems=pos.reduce((s,x)=>s+(x.items?.length||0),0);
     title="Laporan Bahan Baku";
-    summary=`<b>Periode:</b> ${fmtDate(from)} s/d ${fmtDate(to)} &nbsp; | &nbsp; <b>Total PO:</b> ${pos.length} &nbsp; | &nbsp; <b>Total Item PO:</b> ${totalItems} &nbsp; | &nbsp; <b>Total Penerimaan:</b> ${rec.length}`;
+    summary=`<b>Tanggal Dibutuhkan:</b> ${fmtDate(from)} s/d ${fmtDate(to)} &nbsp; | &nbsp; <b>Total PO:</b> ${pos.length} &nbsp; | &nbsp; <b>Total Item PO:</b> ${totalItems} &nbsp; | &nbsp; <b>Total Penerimaan:</b> ${rec.length}`;
     const detail=[];
     pos.forEach((p,pi)=>(p.items||[]).forEach(item=>{
       const received=getReceivedTotal(p,item);
@@ -1620,6 +1647,14 @@ window.printReport=()=>{
     const receipts=[];
     rec.forEach((r,ri)=>(r.items||[]).forEach(item=>{const outside=(r.poId==null)||!!item.outsidePO;receipts.push(`<tr><td>${ri+1}</td><td>${fmtDate(r.date)}</td><td>${esc(r.poNumber||"-")}</td><td>${esc(r.supplier||"-")}</td><td>${esc(item.name||"-")}</td><td>${fmt(getReceiptItemQty(r,item))} ${esc(item.unit||"")}</td><td>${r.status==="Diterima"?"Diterima":esc(r.status||"-")}</td><td>${outside?"Tambahan":"-"}</td></tr>`)}));
     body+=`<h2 style="margin-top:24px">Detail Penerimaan</h2><table><thead><tr><th>No</th><th>Tanggal</th><th>Nomor PO</th><th>Supplier</th><th>Item / Bahan</th><th>Jumlah Diterima</th><th>Status</th><th>Keterangan</th></tr></thead><tbody>${receipts.length?receipts.join(""):`<tr><td colspan="8" class="empty">Tidak ada penerimaan pada periode ini.</td></tr>`}</tbody></table>`;
+    const outsidePrint=[];
+    rec.forEach(r=>(r.items||[]).forEach(i=>{
+      if((r.poId==null)||!!i.outsidePO){
+        const qty=Number(i.receivedNow ?? i.received ?? i.qty ?? 0)||0;
+        outsidePrint.push(`<tr><td>${outsidePrint.length+1}</td><td>${fmtDate(r.date)}</td><td>${esc(r.poNumber||"Di Luar PO")}</td><td>${esc(r.supplier||"-")}</td><td>${esc(i.name||"-")}</td><td>${fmt(qty)}</td><td>${esc(i.unit||"-")}</td><td>Tambahan</td></tr>`);
+      }
+    }));
+    body+=`<h2 style="margin-top:24px">Barang di Luar PO</h2><table><thead><tr><th>No</th><th>Tanggal</th><th>Referensi</th><th>Supplier</th><th>Item / Bahan</th><th>Jumlah</th><th>Satuan</th><th>Keterangan</th></tr></thead><tbody>${outsidePrint.length?outsidePrint.join(""):`<tr><td colspan="8" class="empty">Tidak ada barang di luar PO pada periode ini.</td></tr>`}</tbody></table>`;
   }
   w.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>${title}</title><style>
   *{box-sizing:border-box}body{font-family:Arial,Helvetica,sans-serif;color:#17372a;margin:0;padding:22px;background:#fff}h1{margin:0 0 5px;font-size:22px}h2{font-size:16px;margin:0 0 10px;color:#214e3a}p{margin:0 0 14px;color:#66776e;font-size:12px}.summary{background:#f3f7f4;border:1px solid #dce7e0;border-radius:10px;padding:10px 12px;font-size:11px;margin:12px 0 18px}table{width:100%;border-collapse:collapse;margin-bottom:8px}th,td{border:1px solid #cfdad3;padding:7px 8px;font-size:10.5px;text-align:left;vertical-align:top}th{background:#eef5f0;color:#214e3a;font-weight:700}tr:nth-child(even) td{background:#fafcfb}.num{text-align:right}.badge{display:inline-block;padding:4px 7px;border-radius:12px;background:#edf4ef;font-weight:700;font-size:9px}.empty{text-align:center;color:#777}.footer{margin-top:18px;font-size:9px;color:#777}@media print{body{padding:8mm}@page{size:landscape;margin:8mm}}
