@@ -387,7 +387,7 @@ button,input,select,textarea{font:inherit}.app{display:flex;min-height:100vh}.si
     <label>Tanggal Penerimaan<input type="date" id="recvDate"></label>
     <label>Pilih PO<select id="recvPO" onchange="loadPOReceipt()"></select></label>
     <label>Supplier<input id="recvSupplier" readonly></label>
-    <label>Status<input id="recvStatus" readonly></label>
+    <label>Status PO<input id="recvStatus" readonly></label>
   </div>
 
   <div id="outsidePOForm" class="outside-po-box" style="display:none">
@@ -403,13 +403,13 @@ button,input,select,textarea{font:inherit}.app{display:flex;min-height:100vh}.si
 </div>
 
 <div class="panel">
-  <div class="table-wrap"><table><thead><tr><th>No</th><th>Bahan</th><th>Satuan</th><th>PO</th><th>Diterima</th><th>Selisih</th><th>Aksi</th></tr></thead><tbody id="recvItems"><tr><td colspan="7" class="empty">Pilih PO terlebih dahulu.</td></tr></tbody></table></div>
+  <div class="table-wrap"><table><thead><tr><th>No</th><th>Bahan</th><th>Satuan</th><th>Qty PO</th><th>Total Sudah Datang</th><th>Datang Sekarang</th><th>Sisa</th><th>Status Item</th><th>Aksi</th></tr></thead><tbody id="recvItems"><tr><td colspan="7" class="empty">Pilih PO terlebih dahulu.</td></tr></tbody></table></div>
   <div class="receipt-summary">💡 <b>Penerimaan dilakukan satu per satu.</b> Masukkan jumlah pada kolom <b>Datang Sekarang</b>, lalu klik <b>Terima</b> pada bahan yang benar-benar datang. Bahan lain dapat diterima pada waktu berikutnya.</div>
 </div>
 
 <div class="panel receipt-history">
   <div class="panel-head"><div><h3>📜 Riwayat Penerimaan</h3><p>Edit atau hapus penerimaan yang sudah dicatat.</p></div></div>
-  <div class="table-wrap"><table><thead><tr><th>No</th><th>Tanggal</th><th>No. PO</th><th>Bahan</th><th>Qty Diterima</th><th>Status PO</th><th>Aksi</th></tr></thead><tbody id="receiptHistoryBody"></tbody></table></div>
+  <div class="table-wrap"><table><thead><tr><th>No</th><th>Tanggal</th><th>No. PO</th><th>Bahan</th><th>Qty Diterima</th><th>Status Item</th><th>Aksi</th></tr></thead><tbody id="receiptHistoryBody"></tbody></table></div>
 </div>
 </section>
 
@@ -679,33 +679,48 @@ function getCurrentPOStatus(p){
   return calculatePOStatus(p);
 }
 
+function getItemReceiptStatus(p,item,total=null){
+  if(!p || !item) return "Selesai";
+  const received=total==null?getReceivedTotal(p,item):Number(total||0);
+  const qty=Number(item.qty||0);
+  if(received<=0)return "Belum Selesai";
+  if(received>=qty)return "Selesai";
+  return "Sebagian";
+}
+function itemStatusBadge(status){
+  const cls=status==="Selesai"?"safe":"warning";
+  return `<span class="badge ${cls}">${esc(status)}</span>`;
+}
+
 function renderReceiptItems(){
   const p=bahan.pos.find(x=>String(x.id)===String($("recvPO").value));
   if(!p){
     $("recvItems").innerHTML=outsidePOItems.length
-      ? outsidePOItems.map((x,i)=>`<tr><td>${i+1}</td><td><b>${esc(x.name)}</b> <span class="badge safe">Luar PO</span></td><td>${esc(x.unit)}</td><td>—</td><td>—</td><td>${fmt(x.qty)}</td><td>—</td><td><button class="btn btn-danger btn-small" onclick="removeOutsidePOItem(${i})">🗑️</button></td></tr>`).join("")
-      : `<tr><td colspan="8" class="empty">Pilih PO terlebih dahulu atau tambahkan barang di luar PO.</td></tr>`;
+      ? outsidePOItems.map((x,i)=>`<tr><td>${i+1}</td><td><b>${esc(x.name)}</b> <span class="badge safe">Luar PO</span></td><td>${esc(x.unit)}</td><td>—</td><td>—</td><td>${fmt(x.qty)}</td><td>0</td><td>${itemStatusBadge("Selesai")}</td><td><button class="btn btn-danger btn-small" onclick="removeOutsidePOItem(${i})">🗑️</button></td></tr>`).join("")
+      : `<tr><td colspan="9" class="empty">Pilih PO terlebih dahulu atau tambahkan barang di luar PO.</td></tr>`;
     return;
   }
 
   $("recvItems").innerHTML=(p.items||[]).map((x,i)=>{
     const total=getReceivedTotal(p,x);
     const remaining=Math.max(0,Number(x.qty||0)-total);
+    const itemStatus=getItemReceiptStatus(p,x,total);
     return `<tr>
       <td>${i+1}</td><td><b>${esc(x.name)}</b></td><td>${esc(x.unit)}</td>
       <td>${fmt(x.qty)}</td><td>${fmt(total)}</td>
       <td><input class="item-input qty" id="recvNow_${i}" type="number" min="0" max="${remaining}" step="0.01" value="" placeholder="${remaining}"></td>
       <td class="receipt-remaining ${remaining<=0?"zero":"notzero"}">${fmt(remaining)}</td>
+      <td>${itemStatusBadge(itemStatus)}</td>
       <td><div class="receipt-item-action">
       <button class="btn btn-primary btn-small" ${remaining<=0?"disabled":""} onclick="receiveOneItem(${i})">📥 Terima</button>
       ${total>0?`<button class="btn btn-small" onclick="editReceivedTotal(${i})">✏️ Edit</button>
       <button class="btn btn-danger btn-small" onclick="deleteReceivedTotal(${i})">🗑️ Hapus</button>`:""}
     </div></td>
     </tr>`;
-  }).join("") || `<tr><td colspan="8" class="empty">PO tidak memiliki item.</td></tr>`;
+  }).join("") || `<tr><td colspan="9" class="empty">PO tidak memiliki item.</td></tr>`;
 
   const head=$("recvItems").closest("table")?.querySelector("thead tr");
-  if(head)head.innerHTML="<th>No</th><th>Bahan</th><th>Satuan</th><th>Qty PO</th><th>Total Sudah Datang</th><th>Datang Sekarang</th><th>Sisa</th><th>Aksi</th>";
+  if(head)head.innerHTML="<th>No</th><th>Bahan</th><th>Satuan</th><th>Qty PO</th><th>Total Sudah Datang</th><th>Datang Sekarang</th><th>Sisa</th><th>Status Item</th><th>Aksi</th>";
 }
 
 window.loadPOReceipt=()=>{
@@ -909,10 +924,19 @@ window.deleteReceiptItem=async(receiptId,itemIndex)=>{
 
 function renderReceiptHistory(){
   const rows=[];
-  (bahan.receipts||[]).forEach(r=>(r.items||[]).forEach((item,i)=>rows.push({
-    id:r.id,itemIndex:i,date:r.date||"-",time:r.time||"",poNumber:r.poNumber||"-",
-    name:item.name||"-",qty:getReceiptItemQty(r,item),unit:item.unit||"",status:r.status||"-"
-  })));
+  (bahan.receipts||[]).forEach(r=>(r.items||[]).forEach((item,i)=>{
+    const p=bahan.pos.find(x=>String(x.id)===String(r.poId));
+    const poItem=p?.items?.find(x=>{
+      if(item.masterId!=null && x.masterId!=null)return String(x.masterId)===String(item.masterId);
+      return String(x.name||"").toLowerCase()===String(item.name||"").toLowerCase();
+    });
+    const total=poItem&&p ? getReceivedTotal(p,poItem) : Number(getReceiptItemQty(r,item)||0);
+    const status=poItem&&p ? getItemReceiptStatus(p,poItem,total) : "Selesai";
+    rows.push({
+      id:r.id,itemIndex:i,date:r.date||"-",time:r.time||"",poNumber:r.poNumber||"-",
+      name:item.name||"-",qty:getReceiptItemQty(r,item),unit:item.unit||"",status
+    });
+  }));
 
   rows.sort((a,b)=>((b.date+" "+b.time).localeCompare(a.date+" "+a.time)));
 
@@ -921,7 +945,7 @@ function renderReceiptHistory(){
       <td>${i+1}</td><td>${v30FormatDate(x.date)}${x.time?`<br><small>${esc(x.time)}</small>`:""}</td>
       <td>${esc(x.poNumber)}</td><td><b>${esc(x.name)}</b></td>
       <td>${fmt(x.qty)} ${esc(x.unit)}</td>
-      <td><span class="badge ${statusClass(x.status)}">${esc(x.status)}</span></td>
+      <td>${itemStatusBadge(x.status)}</td>
       <td><div class="receipt-item-action">
         <button class="btn btn-small" onclick="editReceiptItem('${x.id}',${x.itemIndex})">✏️ Edit</button>
         <button class="btn btn-danger btn-small" onclick="deleteReceiptItem('${x.id}',${x.itemIndex})">🗑️ Hapus</button>
