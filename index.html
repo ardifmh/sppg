@@ -265,8 +265,8 @@ button,input,select,textarea{font:inherit}.app{display:flex;min-height:100vh}.si
     <div class="cards">
       <div class="stat-card"><div class="stat-icon">📝</div><div><span>Total PO</span><strong id="totalPOHariIni">0</strong></div></div>
       <div class="stat-card"><div class="stat-icon">📋</div><div><span>Total Item PO</span><strong id="totalItemPOHariIni">0</strong></div></div>
-      <div class="stat-card"><div class="stat-icon">✅</div><div><span>PO Selesai</span><strong id="totalPOSelesaiHariIni">0</strong></div></div>
-      <div class="stat-card"><div class="stat-icon">⏳</div><div><span>PO Belum Selesai</span><strong id="totalPOBelumSelesaiHariIni">0</strong></div></div>
+      <div class="stat-card"><div class="stat-icon">✅</div><div><span>Item Selesai</span><strong id="totalPOSelesaiHariIni">0</strong></div></div>
+      <div class="stat-card"><div class="stat-icon">⏳</div><div><span>Item Belum Selesai</span><strong id="totalPOBelumSelesaiHariIni">0</strong></div></div>
     </div>
 
     <div class="dashboard-date-box">
@@ -287,8 +287,8 @@ button,input,select,textarea{font:inherit}.app{display:flex;min-height:100vh}.si
       <div class="dashboard-po-panel pending">
         <div class="dashboard-po-head">
           <div>
-            <h3>⏳ PO Belum Selesai</h3>
-            <p id="poPendingLabel">PO yang masih menunggu penyelesaian penerimaan.</p>
+            <h3>⏳ Item Belum Selesai</h3>
+            <p id="poPendingLabel">PO yang masih memiliki item belum selesai.</p>
           </div>
           <div>
             <span class="dashboard-po-count" id="poPendingCount">0 PO</span>
@@ -321,8 +321,8 @@ button,input,select,textarea{font:inherit}.app{display:flex;min-height:100vh}.si
       <div class="dashboard-po-panel done">
         <div class="dashboard-po-head">
           <div>
-            <h3>✅ PO Sudah Selesai</h3>
-            <p id="poDoneLabel">PO yang seluruh kebutuhannya sudah selesai diterima.</p>
+            <h3>✅ Item Selesai</h3>
+            <p id="poDoneLabel">PO yang seluruh itemnya sudah selesai diterima.</p>
           </div>
           <div>
             <span class="dashboard-po-count" id="poDoneCount">0 PO</span>
@@ -1500,12 +1500,13 @@ function renderDashboard(){
   const donePO=datePO.filter(p=>getCurrentPOStatus(p)==="Selesai");
 
   const totalItems=datePO.reduce((sum,p)=>sum+(Array.isArray(p.items)?p.items.length:0),0);
-  const selesai=donePO.length;
+  const selesaiItem=datePO.reduce((sum,p)=>sum+(p.items||[]).filter(item=>getItemReceiptStatus(p,item)==="Selesai").length,0);
+  const belumSelesaiItem=Math.max(0,totalItems-selesaiItem);
 
   $("totalPOHariIni").textContent=datePO.length;
   $("totalItemPOHariIni").textContent=totalItems;
-  $("totalPOSelesaiHariIni").textContent=selesai;
-  $("totalPOBelumSelesaiHariIni").textContent=pendingPO.length;
+  $("totalPOSelesaiHariIni").textContent=selesaiItem;
+  $("totalPOBelumSelesaiHariIni").textContent=belumSelesaiItem;
 
   v30RenderPOBox(
     pendingPO,
