@@ -1638,23 +1638,31 @@ window.printMasterBumbu=(id=null)=>{
   if(!list.length){alert("Data bumbu tidak ditemukan.");return}
   const w=window.open("","_blank","width=1200,height=800");
   if(!w){alert("Izinkan pop-up browser untuk mencetak laporan.");return;}
-  const fmtDate=v=>v?String(v).split("-").reverse().join("-"):"-";
   const status=x=>x.stok<=0?"HABIS":x.stok<=x.min?"MENIPIS":"AMAN";
-  let sections=list.map((x,idx)=>{
-    const tx=(bumbu.transaksi||[]).filter(t=>String(t.kode).toLowerCase()===String(x.kode).toLowerCase()).slice().sort((a,b)=>String(b.tanggal||"").localeCompare(String(a.tanggal||""))||Number(b.createdAt||0)-Number(a.createdAt||0));
+  const rows=list.map((x,i)=>{
+    const tx=(bumbu.transaksi||[]).filter(t=>String(t.kode).toLowerCase()===String(x.kode).toLowerCase());
     const masuk=tx.filter(t=>t.jenis==="masuk").reduce((s,t)=>s+Number(t.jumlah||0),0);
     const keluar=tx.filter(t=>t.jenis==="keluar").reduce((s,t)=>s+Number(t.jumlah||0),0);
-    const rows=tx.length?tx.map((t,i)=>`<tr><td>${i+1}</td><td>${fmtDate(t.tanggal)}</td><td>${t.jenis==="masuk"?"📥 Stok Masuk":"📤 Stok Keluar"}</td><td>${fmt(t.jumlah)}</td><td>${esc(t.satuan||x.satuan||"-")}</td><td>${esc(t.keterangan||"-")}</td></tr>`).join(""): `<tr><td colspan="6" class="empty">Belum ada transaksi untuk bumbu ini.</td></tr>`;
-    return `<div class="section ${idx?"page-break":""}">
-      <h2>${esc(x.nama)}</h2>
-      <div class="summary"><b>Kode:</b> ${esc(x.kode)} &nbsp; | &nbsp; <b>Satuan:</b> ${esc(x.satuan)} &nbsp; | &nbsp; <b>Minimum:</b> ${fmt(x.min)} &nbsp; | &nbsp; <b>Stok Saat Ini:</b> ${fmt(x.stok)} ${esc(x.satuan)} &nbsp; | &nbsp; <b>Status:</b> ${status(x)}</div>
-      <div class="cards"><div><span>Total Stok Masuk</span><strong>${fmt(masuk)} ${esc(x.satuan)}</strong></div><div><span>Total Stok Keluar</span><strong>${fmt(keluar)} ${esc(x.satuan)}</strong></div><div><span>Selisih Transaksi</span><strong>${fmt(masuk-keluar)} ${esc(x.satuan)}</strong></div><div><span>Jumlah Transaksi</span><strong>${tx.length}</strong></div></div>
-      <h3>Detail Riwayat Transaksi</h3>
-      <table><thead><tr><th>No</th><th>Tanggal</th><th>Jenis</th><th>Jumlah</th><th>Satuan</th><th>Keterangan</th></tr></thead><tbody>${rows}</tbody></table>
-    </div>`;
+    const last=tx.slice().sort((a,b)=>String(b.tanggal||"").localeCompare(String(a.tanggal||""))||Number(b.createdAt||0)-Number(a.createdAt||0))[0];
+    const lastDate=last?.tanggal?String(last.tanggal).split("-").reverse().join("-"):"-";
+    return `<tr>
+      <td>${i+1}</td>
+      <td><b>${esc(x.kode)}</b></td>
+      <td><b>${esc(x.nama)}</b></td>
+      <td>${esc(x.satuan||"-")}</td>
+      <td class="num">${fmt(x.min)}</td>
+      <td class="num"><b>${fmt(x.stok)}</b></td>
+      <td><span class="status ${status(x).toLowerCase()}">${status(x)}</span></td>
+      <td class="num">${fmt(masuk)}</td>
+      <td class="num">${fmt(keluar)}</td>
+      <td class="num">${fmt(masuk-keluar)}</td>
+      <td>${lastDate}</td>
+      <td>${esc(last?.keterangan||"-")}</td>
+    </tr>`;
   }).join("");
-  const title=id==null?"Laporan Detail Master Bumbu":"Laporan Detail Bumbu";
-  w.document.write(`<!doctype html><html lang="id"><head><meta charset="utf-8"><title>${title}</title><style>body{font-family:Arial,Helvetica,sans-serif;color:#17372a;margin:0;padding:24px}h1{font-size:22px;margin:0 0 6px}h2{font-size:18px;margin:0 0 8px;color:#214e3a}h3{font-size:14px;margin:16px 0 8px}.head{border-bottom:2px solid #214e3a;padding-bottom:12px;margin-bottom:18px}.head p{margin:0;color:#66776e;font-size:11px}.summary{background:#f3f7f4;border:1px solid #dce7e0;border-radius:10px;padding:10px 12px;font-size:11px;margin:10px 0 16px}.cards{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:10px 0 16px}.cards>div{border:1px solid #dce7e0;border-radius:9px;padding:9px;background:#fafcfb}.cards span{display:block;color:#66776e;font-size:9px}.cards strong{display:block;margin-top:4px;font-size:13px}table{width:100%;border-collapse:collapse;margin-bottom:8px}th,td{border:1px solid #cfdad3;padding:7px 8px;font-size:10.5px;text-align:left;vertical-align:top}th{background:#eef5f0;color:#214e3a}.num{text-align:right}.empty{text-align:center;color:#777}.footer{margin-top:18px;font-size:9px;color:#777}.page-break{page-break-before:always}@media print{body{padding:8mm}@page{size:landscape;margin:8mm}}</style></head><body><div class="head"><h1>${title}</h1><p>Sistem Manajemen Dapur · Dicetak ${new Date().toLocaleString("id-ID")}</p></div>${sections}<div class="footer">Laporan dibuat dari data Master Bumbu dan riwayat transaksi.</div><script>window.onload=()=>{setTimeout(()=>window.print(),300)}<\/script></body></html>`);
+  const title=id==null?"Laporan Master Stok Bumbu":"Laporan Detail Stok Bumbu";
+  w.document.write(`<!doctype html><html lang="id"><head><meta charset="utf-8"><title>${title}</title><style>
+    *{box-sizing:border-box}body{font-family:Arial,Helvetica,sans-serif;color:#222;margin:0;padding:18px;background:#fff}h1{font-size:19px;margin:0 0 4px;color:#17372a}p{margin:0 0 14px;color:#66776e;font-size:10px}.head{border-bottom:2px solid #214e3a;padding-bottom:9px;margin-bottom:12px}table{width:100%;border-collapse:collapse}th,td{border:1px solid #cfd6d2;padding:5px 6px;font-size:8.5px;text-align:left;vertical-align:middle}th{background:#eef5f0;color:#214e3a;font-weight:700;white-space:nowrap}tr:nth-child(even) td{background:#fafcfb}.num{text-align:right}.status{font-weight:700}.status.aman{color:#177245}.status.menipis{color:#a56800}.status.habis{color:#b42318}.footer{margin-top:10px;font-size:8px;color:#777} @media print{body{padding:7mm}@page{size:landscape;margin:7mm}thead{display:table-header-group}tr{page-break-inside:avoid}}</style></head><body><div class="head"><h1>${title}</h1><p>Sistem Manajemen Dapur &nbsp;•&nbsp; Dicetak: ${new Date().toLocaleString("id-ID")}</p></div><table><thead><tr><th>No</th><th>Kode</th><th>Nama Bumbu</th><th>Satuan</th><th>Min.</th><th>Stok</th><th>Status</th><th>Total Masuk</th><th>Total Keluar</th><th>Selisih</th><th>Transaksi Terakhir</th><th>Keterangan Terakhir</th></tr></thead><tbody>${rows}</tbody></table><div class="footer">Laporan ringkas dan detail berdasarkan Master Bumbu serta riwayat transaksi yang tersimpan.</div><script>window.onload=()=>setTimeout(()=>window.print(),300)<\/script></body></html>`);
   w.document.close();
 };
 window.printReport=()=>{
