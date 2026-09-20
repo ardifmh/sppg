@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Sistem Manajemen Dapur - V47</title>
+<title>Sistem Manajemen Dapur</title>
 <style>
 *{box-sizing:border-box}body{margin:0;font-family:Arial,Helvetica,sans-serif;background:#f4f8f5;color:#17372a}
 button,input,select,textarea{font:inherit}.app{display:flex;min-height:100vh}.sidebar{width:235px;background:#123f2d;color:#fff;padding:20px 14px;position:fixed;left:0;top:0;bottom:0;z-index:20}
@@ -265,8 +265,8 @@ button,input,select,textarea{font:inherit}.app{display:flex;min-height:100vh}.si
     <div class="cards">
       <div class="stat-card"><div class="stat-icon">📝</div><div><span>Total PO</span><strong id="totalPOHariIni">0</strong></div></div>
       <div class="stat-card"><div class="stat-icon">📋</div><div><span>Total Item PO</span><strong id="totalItemPOHariIni">0</strong></div></div>
-      <div class="stat-card"><div class="stat-icon">✅</div><div><span>Item Selesai</span><strong id="totalPOSelesaiHariIni">0</strong></div></div>
-      <div class="stat-card"><div class="stat-icon">⏳</div><div><span>Item Belum Selesai</span><strong id="totalPOBelumSelesaiHariIni">0</strong></div></div>
+      <div class="stat-card"><div class="stat-icon">✅</div><div><span>PO Selesai</span><strong id="totalPOSelesaiHariIni">0</strong></div></div>
+      <div class="stat-card"><div class="stat-icon">⏳</div><div><span>PO Belum Selesai</span><strong id="totalPOBelumSelesaiHariIni">0</strong></div></div>
     </div>
 
     <div class="dashboard-date-box">
@@ -287,11 +287,11 @@ button,input,select,textarea{font:inherit}.app{display:flex;min-height:100vh}.si
       <div class="dashboard-po-panel pending">
         <div class="dashboard-po-head">
           <div>
-            <h3>⏳ Item Belum Selesai</h3>
-            <p id="poPendingLabel">Item yang belum selesai diterima atau masih sebagian.</p>
+            <h3>⏳ PO Belum Selesai</h3>
+            <p id="poPendingLabel">PO yang masih menunggu penyelesaian penerimaan.</p>
           </div>
           <div>
-            <span class="dashboard-po-count" id="poPendingCount">0 Item</span>
+            <span class="dashboard-po-count" id="poPendingCount">0 PO</span>
             <div class="dashboard-po-tools" style="margin-top:8px">
               <button class="btn btn-light" onclick="v31PrintPOList('pending')">🖨️ Cetak</button>
               <button class="btn btn-light" onclick="v31DownloadPOCSV('pending')">⬇️ CSV</button>
@@ -302,8 +302,14 @@ button,input,select,textarea{font:inherit}.app{display:flex;min-height:100vh}.si
           <table>
             <thead>
               <tr>
-                <th>No</th><th>Nomor PO</th><th>Tgl PO</th><th>Tgl Dibutuhkan</th>
-                <th>Item</th><th>Qty PO</th><th>Sudah Datang</th><th>Sisa</th><th>Status Item</th><th>Aksi</th>
+                <th>No</th>
+                <th>Nomor PO</th>
+                <th>Tgl PO</th>
+                <th>Tgl Dibutuhkan</th>
+                <th>Supplier</th>
+                <th>Item</th>
+                <th>Status</th>
+                <th>Aksi</th>
               </tr>
             </thead>
             <tbody id="poPendingBody"></tbody>
@@ -315,11 +321,11 @@ button,input,select,textarea{font:inherit}.app{display:flex;min-height:100vh}.si
       <div class="dashboard-po-panel done">
         <div class="dashboard-po-head">
           <div>
-            <h3>✅ Item Selesai</h3>
-            <p id="poDoneLabel">Item yang jumlah diterimanya sudah memenuhi Qty PO.</p>
+            <h3>✅ PO Sudah Selesai</h3>
+            <p id="poDoneLabel">PO yang seluruh kebutuhannya sudah selesai diterima.</p>
           </div>
           <div>
-            <span class="dashboard-po-count" id="poDoneCount">0 Item</span>
+            <span class="dashboard-po-count" id="poDoneCount">0 PO</span>
             <div class="dashboard-po-tools" style="margin-top:8px">
               <button class="btn btn-light" onclick="v31PrintPOList('done')">🖨️ Cetak</button>
               <button class="btn btn-light" onclick="v31DownloadPOCSV('done')">⬇️ CSV</button>
@@ -330,8 +336,14 @@ button,input,select,textarea{font:inherit}.app{display:flex;min-height:100vh}.si
           <table>
             <thead>
               <tr>
-                <th>No</th><th>Nomor PO</th><th>Tgl PO</th><th>Tgl Dibutuhkan</th>
-                <th>Item</th><th>Qty PO</th><th>Sudah Datang</th><th>Sisa</th><th>Status Item</th><th>Aksi</th>
+                <th>No</th>
+                <th>Nomor PO</th>
+                <th>Tgl PO</th>
+                <th>Tgl Dibutuhkan</th>
+                <th>Supplier</th>
+                <th>Item</th>
+                <th>Status</th>
+                <th>Aksi</th>
               </tr>
             </thead>
             <tbody id="poDoneBody"></tbody>
@@ -1080,7 +1092,7 @@ function v30RenderPaging(targetId, type, total){
   buttons+=`<button ${page===pages?"disabled":""} onclick="v30ChangePOPage('${type}',${page+1})">›</button>`;
 
   el.innerHTML=`
-    <span class="info">Menampilkan ${start}–${end} dari ${total} Item</span>
+    <span class="info">Menampilkan ${start}–${end} dari ${total} PO</span>
     <div class="buttons">${buttons}</div>
   `;
 }
@@ -1091,46 +1103,46 @@ window.v30ChangePOPage=function(type,page){
 };
 
 function v30RenderPOBox(list,type,bodyId,pagingId,countId,labelId){
-  const sorted=[...list].sort((a,b)=>{
-    const da=String(a.p?.needDate||"9999-12-31");
-    const db=String(b.p?.needDate||"9999-12-31");
-    if(da!==db)return da.localeCompare(db);
-    return String(a.p?.number||"").localeCompare(String(b.p?.number||""));
-  });
+  const sorted=v30SortPO(list);
   const total=sorted.length;
 
-  $(countId).textContent=`${total} Item`;
+  $(countId).textContent=`${total} PO`;
   $(labelId).textContent=type==="pending"
-    ? "Item yang belum selesai diterima atau masih sebagian."
-    : "Item yang jumlah diterimanya sudah memenuhi Qty PO.";
+    ? "PO yang masih menunggu penyelesaian penerimaan."
+    : "PO yang seluruh kebutuhannya sudah selesai diterima.";
 
   const pages=Math.max(1,Math.ceil(total/V30_PO_PAGE_SIZE));
   let page=window.v30POPages[type]||1;
   if(page>pages) page=pages;
   window.v30POPages[type]=page;
 
-  const rows=sorted.slice((page-1)*V30_PO_PAGE_SIZE,page*V30_PO_PAGE_SIZE);
-  $(bodyId).innerHTML=rows.length ? rows.map((row,i)=>{
-    const p=row.p, item=row.item, received=row.received, remaining=row.remaining, status=row.status;
-    const need=String(p.needDate||"");
-    const cls=v30NeedDateClass(need);
-    const globalNo=(page-1)*V30_PO_PAGE_SIZE+i+1;
-    return `<tr>
-      <td>${globalNo}</td>
-      <td><b>${esc(p.number||"-")}</b></td>
-      <td>${v30FormatDate(p.date)}</td>
-      <td class="${cls}">${v30FormatDate(need)}</td>
-      <td><b>${esc(item.name||"-")}</b><br><small>${esc(item.unit||"")}</small></td>
-      <td>${fmt(item.qty)} ${esc(item.unit||"")}</td>
-      <td>${fmt(received)} ${esc(item.unit||"")}</td>
-      <td>${fmt(remaining)} ${esc(item.unit||"")}</td>
-      <td><span class="badge ${statusClass(status)}">${esc(status)}</span></td>
-      <td><div class="dashboard-po-actions">
-        <button class="btn btn-small" onclick="editPO('${p.id}')">✏️ Edit PO</button>
-        <button class="btn btn-danger btn-small" onclick="deletePO('${p.id}')">🗑️ Hapus PO</button>
-      </div></td>
-    </tr>`;
-  }).join("") : `<tr><td colspan="10" class="empty">${type==="pending"?"Tidak ada item yang belum selesai.":"Belum ada item yang selesai."}</td></tr>`;
+  const rows=sorted.slice(
+    (page-1)*V30_PO_PAGE_SIZE,
+    page*V30_PO_PAGE_SIZE
+  );
+
+  $(bodyId).innerHTML=rows.length
+    ? rows.map((p,i)=>{
+        const need=String(p.needDate||"");
+        const cls=v30NeedDateClass(need);
+        const globalNo=(page-1)*V30_PO_PAGE_SIZE+i+1;
+        return `<tr>
+          <td>${globalNo}</td>
+          <td><b>${esc(p.number||"-")}</b></td>
+          <td>${v30FormatDate(p.date)}</td>
+          <td class="${cls}">${v30FormatDate(need)}</td>
+          <td>${esc(p.supplier||"-")}</td>
+          <td>${Array.isArray(p.items)?p.items.length:0}</td>
+          <td><span class="badge ${statusClass(getCurrentPOStatus(p))}">${esc(getCurrentPOStatus(p)||"-")}</span></td>
+          <td>
+            <div class="dashboard-po-actions">
+              <button class="btn btn-small" onclick="editPO('${p.id}')">✏️ Edit</button>
+              <button class="btn btn-danger btn-small" onclick="deletePO('${p.id}')">🗑️ Hapus</button>
+            </div>
+          </td>
+        </tr>`;
+      }).join("")
+    : `<tr><td colspan="8" class="empty">${type==="pending"?"Tidak ada PO yang belum selesai.":"Belum ada PO yang selesai."}</td></tr>`;
 
   v30RenderPaging(pagingId,type,total);
 }
@@ -1236,32 +1248,13 @@ function v34RenderNeedDateTabs(allPO){
   if(title)title.textContent=`Menampilkan ${count} PO yang dibutuhkan pada ${v30FormatDate(selected)}.`;
 }
 
-function v31ItemData(type){
+function v31POData(type){
   const all=Array.isArray(bahan.pos)?bahan.pos:[];
-  const selected=window.v34SelectedNeedDate||"";
-  const out=[];
-  all.forEach(p=>{
-    if(selected && String(p.needDate||"")!==String(selected))return;
-    (p.items||[]).forEach(item=>{
-      const received=typeof getReceivedTotal==="function"
-        ? getReceivedTotal(p,item)
-        : Number(item.receivedTotal||item.received||0);
-      const remaining=Math.max(0,Number(item.qty||0)-received);
-      const status=remaining<=0 ? "Selesai" : received>0 ? "Sebagian" : "Belum Selesai";
-      if(type==="pending" && status==="Selesai")return;
-      if(type==="done" && status!=="Selesai")return;
-      out.push({p,item,received,remaining,status});
-    });
-  });
-  return out.sort((a,b)=>{
-    const da=String(a.p?.needDate||"9999-12-31");
-    const db=String(b.p?.needDate||"9999-12-31");
-    if(da!==db)return da.localeCompare(db);
-    const pa=String(a.p?.number||"");
-    const pb=String(b.p?.number||"");
-    if(pa!==pb)return pa.localeCompare(pb);
-    return String(a.item?.name||"").localeCompare(String(b.item?.name||""));
-  });
+  let list=type==="pending"
+    ? all.filter(p=>getCurrentPOStatus(p)!=="Selesai")
+    : all.filter(p=>getCurrentPOStatus(p)==="Selesai");
+  if(window.v34SelectedNeedDate) list=list.filter(p=>String(p.needDate||"")===String(window.v34SelectedNeedDate));
+  return v30SortPO(list);
 }
 
 function v31CSVEscape(v){
@@ -1269,22 +1262,44 @@ function v31CSVEscape(v){
 }
 
 window.v31DownloadPOCSV=function(type){
-  const list=v31ItemData(type);
-  const title=type==="pending"?"Item_Belum_Selesai":"Item_Selesai";
+  const list=v31POData(type);
+  const title=type==="pending"?"PO_Belum_Selesai":"PO_Sudah_Selesai";
   const rows=[[
-    "No PO","Tanggal PO","Tanggal Dibutuhkan","Item/Bahan","Satuan","Qty PO","Sudah Datang","Sisa","Status Item","Keterangan"
+    "No PO","Tanggal PO","Tanggal Dibutuhkan","Supplier",
+    "Item/Bahan","Satuan","Qty PO","Sudah Datang","Sisa","Status","Keterangan"
   ]];
-  list.forEach(x=>{
-    rows.push([x.p.number||"",x.p.date||"",x.p.needDate||"",x.item.name||"",x.item.unit||"",Number(x.item.qty)||0,x.received,x.remaining,x.status,x.item.note||x.p.note||""]);
+
+  list.forEach(p=>{
+    (p.items||[]).forEach(item=>{
+      const received=typeof getReceivedTotal==="function"
+        ? getReceivedTotal(p,item)
+        : Number(item.receivedTotal||item.received||0);
+      const remaining=Math.max(0,Number(item.qty||0)-received);
+
+      rows.push([
+        p.number||"",
+        p.date||"",
+        p.needDate||"",
+        p.supplier||"",
+        item.name||"",
+        item.unit||"",
+        Number(item.qty)||0,
+        received,
+        remaining,
+        getCurrentPOStatus(p)||"",
+        item.note||p.note||""
+      ]);
+    });
   });
+
   const csv="\uFEFF"+rows.map(r=>r.map(v31CSVEscape).join(",")).join("\r\n");
   const blob=new Blob([csv],{type:"text/csv;charset=utf-8"});
   const a=document.createElement("a");
   a.href=URL.createObjectURL(blob);
-  a.download=`${title}_${today()}.csv`;
+  a.download=`${title}_Detail_${today()}.csv`;
   a.click();
   setTimeout(()=>URL.revokeObjectURL(a.href),500);
-  toast("Daftar item berhasil diunduh.");
+  toast("Daftar PO detail berhasil diunduh.");
 };
 
 window.v40PrintManualCheck=function(){
@@ -1475,31 +1490,25 @@ function renderDashboard(){
   const acts=bumbu.transaksi.map(x=>({d:x.tanggal,t:x.jenis==="masuk"?"Stok Masuk":"Stok Keluar",n:x.nama,q:x.jumlah,s:x.satuan})).sort((a,b)=>b.d.localeCompare(a.d)).slice(0,8);
   $("recent").innerHTML=acts.length?acts.map(x=>`<div class="mini-row"><span>${esc(x.t)} — ${esc(x.n)}</span><b>${fmt(x.q)} ${esc(x.s||"")}</b></div>`).join(""):`<div class="empty">Belum ada transaksi.</div>`;
 
-  // Dashboard Bahan Baku: status dihitung per ITEM.
+  // Dashboard Bahan Baku:
+  // Pisahkan PO belum selesai dan PO selesai, lalu masing-masing diberi paging.
   const allPO=Array.isArray(bahan.pos)?bahan.pos:[];
   v34RenderNeedDateTabs(allPO);
   const selectedDate=window.v34SelectedNeedDate;
   const datePO=selectedDate ? allPO.filter(p=>String(p.needDate||"")===String(selectedDate)) : allPO;
-  const itemList=[];
-  datePO.forEach(p=>{
-    (p.items||[]).forEach(item=>{
-      const received=getReceivedTotal(p,item);
-      const remaining=Math.max(0,Number(item.qty||0)-received);
-      const status=remaining<=0 ? "Selesai" : received>0 ? "Sebagian" : "Belum Selesai";
-      itemList.push({p,item,received,remaining,status});
-    });
-  });
+  const pendingPO=datePO.filter(p=>getCurrentPOStatus(p)!=="Selesai");
+  const donePO=datePO.filter(p=>getCurrentPOStatus(p)==="Selesai");
 
-  const selesai=itemList.filter(x=>x.status==="Selesai").length;
-  const belum=itemList.filter(x=>x.status!=="Selesai").length;
+  const totalItems=datePO.reduce((sum,p)=>sum+(Array.isArray(p.items)?p.items.length:0),0);
+  const selesai=donePO.length;
 
   $("totalPOHariIni").textContent=datePO.length;
-  $("totalItemPOHariIni").textContent=itemList.length;
+  $("totalItemPOHariIni").textContent=totalItems;
   $("totalPOSelesaiHariIni").textContent=selesai;
-  $("totalPOBelumSelesaiHariIni").textContent=belum;
+  $("totalPOBelumSelesaiHariIni").textContent=pendingPO.length;
 
   v30RenderPOBox(
-    itemList.filter(x=>x.status!=="Selesai"),
+    pendingPO,
     "pending",
     "poPendingBody",
     "poPendingPaging",
@@ -1508,7 +1517,7 @@ function renderDashboard(){
   );
 
   v30RenderPOBox(
-    itemList.filter(x=>x.status==="Selesai"),
+    donePO,
     "done",
     "poDoneBody",
     "poDonePaging",
