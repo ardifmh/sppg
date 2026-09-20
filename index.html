@@ -275,6 +275,9 @@ button,input,select,textarea{font:inherit}.app{display:flex;min-height:100vh}.si
           <h3>📅 Tanggal Dibutuhkan</h3>
           <p id="poNeedDateTitle">Pilih tanggal untuk melihat PO pada tanggal tersebut.</p>
         </div>
+        <div class="dashboard-po-tools">
+          <button class="btn btn-light" onclick="v40PrintManualCheck()">📝 Cetak Cek Barang Manual</button>
+        </div>
       </div>
       <div id="poNeedDateTabs" class="dashboard-date-tabs"></div>
     </div>
@@ -669,6 +672,11 @@ function calculatePOStatus(p){
   if(totals.every((v,i)=>v>=Number(items[i].qty||0)))return "Selesai";
   if(totals.some(v=>v>0))return "Sebagian";
   return "Diajukan";
+}
+
+// Status selalu dihitung dari riwayat penerimaan agar Dashboard, Laporan, Cetak, dan CSV konsisten.
+function getCurrentPOStatus(p){
+  return calculatePOStatus(p);
 }
 
 function renderReceiptItems(){
@@ -1101,7 +1109,7 @@ function v30RenderPOBox(list,type,bodyId,pagingId,countId,labelId){
           <td class="${cls}">${v30FormatDate(need)}</td>
           <td>${esc(p.supplier||"-")}</td>
           <td>${Array.isArray(p.items)?p.items.length:0}</td>
-          <td><span class="badge ${statusClass(p.status)}">${esc(p.status||"-")}</span></td>
+          <td><span class="badge ${statusClass(getCurrentPOStatus(p))}">${esc(getCurrentPOStatus(p)||"-")}</span></td>
           <td>
             <div class="dashboard-po-actions">
               <button class="btn btn-small" onclick="editPO('${p.id}')">✏️ Edit</button>
@@ -1219,8 +1227,8 @@ function v34RenderNeedDateTabs(allPO){
 function v31POData(type){
   const all=Array.isArray(bahan.pos)?bahan.pos:[];
   let list=type==="pending"
-    ? all.filter(p=>p.status!=="Selesai")
-    : all.filter(p=>p.status==="Selesai");
+    ? all.filter(p=>getCurrentPOStatus(p)!=="Selesai")
+    : all.filter(p=>getCurrentPOStatus(p)==="Selesai");
   if(window.v34SelectedNeedDate) list=list.filter(p=>String(p.needDate||"")===String(window.v34SelectedNeedDate));
   return v30SortPO(list);
 }
@@ -1254,7 +1262,7 @@ window.v31DownloadPOCSV=function(type){
         Number(item.qty)||0,
         received,
         remaining,
-        p.status||"",
+        getCurrentPOStatus(p)||"",
         item.note||p.note||""
       ]);
     });
@@ -1268,6 +1276,90 @@ window.v31DownloadPOCSV=function(type){
   a.click();
   setTimeout(()=>URL.revokeObjectURL(a.href),500);
   toast("Daftar PO detail berhasil diunduh.");
+};
+
+window.v40PrintManualCheck=function(){
+  const selected=window.v34SelectedNeedDate||"";
+  const list=(Array.isArray(bahan.pos)?bahan.pos:[])
+    .filter(p=>!selected || String(p.needDate||"")===String(selected))
+    .sort((a,b)=>String(a.number||"").localeCompare(String(b.number||"")));
+
+  const detail=[];
+  list.forEach((p,pi)=>{
+    (p.items||[]).forEach((item,ii)=>{
+      const received=typeof getReceivedTotal==="function"
+        ? getReceivedTotal(p,item)
+        : Number(item.receivedTotal||item.received||0);
+      const remaining=Math.max(0,Number(item.qty||0)-received);
+      detail.push({p,item,received,remaining,no:detail.length+1});
+    });
+  });
+
+  const rows=detail.length ? detail.map(x=>`<tr>
+    <td>${x.no}</td>
+    <td><b>${esc(x.p.number||"-")}</b></td>
+    <td>${v30FormatDate(x.p.date)}</td>
+    <td><b>${esc(x.item.name||"-")}</b></td>
+    <td>${fmt(x.item.qty)} ${esc(x.item.unit||"")}</td>
+    <td class="check">☐</td>
+    <td class="condition"></td>
+    <td class="note"></td>
+  </tr>`).join("") : `<tr><td colspan="8" class="empty">Tidak ada PO pada tanggal ini.</td></tr>`;
+
+  const w=window.open("","_blank","width=1400,height=850");
+  if(!w)return alert("Popup diblokir browser. Izinkan popup untuk mencetak.");
+
+  w.document.write(`<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<title>Cek Barang Manual - ${v30FormatDate(selected)}</title>
+<style>
+*{box-sizing:border-box}
+body{font-family:Arial,sans-serif;padding:25px;color:#222}
+h1{margin:0 0 5px;font-size:22px}
+p{margin:0 0 5px;color:#666;font-size:12px}
+.info{margin:14px 0;padding:10px 12px;background:#f3f6f4;border-radius:8px;font-size:12px}
+table{width:100%;border-collapse:collapse;margin-top:15px}
+th,td{border:1px solid #777;padding:8px;font-size:11px;vertical-align:middle}
+th{background:#eef3f0;text-align:left}
+.check{text-align:center;font-size:20px;width:55px}
+.condition{height:28px;min-width:160px}
+.note{height:28px;min-width:190px}
+.empty{text-align:center;padding:20px;color:#666}
+.signature{margin-top:28px;display:flex;justify-content:flex-end}
+.signature div{width:220px;text-align:center;font-size:11px}
+@media print{
+ body{padding:8px}
+ @page{size:landscape;margin:10mm}
+ .note{height:30px}
+}
+</style>
+</head>
+<body>
+<h1>📝 Form Cek Barang Manual</h1>
+<p>Sistem Manajemen Dapur</p>
+<div class="info">
+  <b>Tanggal Dibutuhkan:</b> ${v30FormatDate(selected||today())}
+  &nbsp;&nbsp; | &nbsp;&nbsp;
+  <b>Total PO:</b> ${list.length}
+  &nbsp;&nbsp; | &nbsp;&nbsp;
+  <b>Total Item:</b> ${detail.length}
+</div>
+<table>
+<thead><tr>
+<th>No</th><th>Nomor PO</th><th>Tgl PO</th><th>Item / Bahan</th>
+<th>Qty PO</th><th>Cek</th><th>Kondisi Barang</th><th>Catatan Manual</th>
+</tr></thead>
+<tbody>${rows}</tbody>
+</table>
+<div class="signature"><div>
+  Pemeriksa,<br><br><br><br>
+  ____________________
+</div></div>
+<script>window.onload=()=>setTimeout(()=>window.print(),300)<\/script>
+</body></html>`);
+  w.document.close();
 };
 
 window.v31PrintPOList=function(type){
@@ -1292,7 +1384,7 @@ window.v31PrintPOList=function(type){
         <td>${fmt(item.qty)} ${esc(item.unit||"")}</td>
         <td>${fmt(received)} ${esc(item.unit||"")}</td>
         <td>${fmt(remaining)} ${esc(item.unit||"")}</td>
-        <td>${esc(p.status||"-")}</td>
+        <td>${esc(getCurrentPOStatus(p)||"-")}</td>
       </tr>`);
     });
   });
@@ -1380,8 +1472,8 @@ function renderDashboard(){
   v34RenderNeedDateTabs(allPO);
   const selectedDate=window.v34SelectedNeedDate;
   const datePO=selectedDate ? allPO.filter(p=>String(p.needDate||"")===String(selectedDate)) : allPO;
-  const pendingPO=datePO.filter(p=>p.status!=="Selesai");
-  const donePO=datePO.filter(p=>p.status==="Selesai");
+  const pendingPO=datePO.filter(p=>getCurrentPOStatus(p)!=="Selesai");
+  const donePO=datePO.filter(p=>getCurrentPOStatus(p)==="Selesai");
 
   const totalItems=datePO.reduce((sum,p)=>sum+(Array.isArray(p.items)?p.items.length:0),0);
   const selesai=donePO.length;
@@ -1483,7 +1575,7 @@ window.printReport=()=>{
     pos.forEach((p,pi)=>(p.items||[]).forEach(item=>{
       const received=getReceivedTotal(p,item);
       const remaining=Math.max(0,Number(item.qty||0)-received);
-      detail.push(`<tr><td>${pi+1}</td><td>${esc(p.number)}</td><td>${fmtDate(p.date)}</td><td>${fmtDate(p.needDate)}</td><td>${esc(p.supplier||"-")}</td><td><b>${esc(item.name||"-")}</b></td><td>${fmt(item.qty)} ${esc(item.unit||"")}</td><td>${fmt(received)} ${esc(item.unit||"")}</td><td>${fmt(remaining)} ${esc(item.unit||"")}</td><td><span class="badge ${statusClass(p.status)}">${esc(p.status||"-")}</span></td></tr>`);
+      detail.push(`<tr><td>${pi+1}</td><td>${esc(p.number)}</td><td>${fmtDate(p.date)}</td><td>${fmtDate(p.needDate)}</td><td>${esc(p.supplier||"-")}</td><td><b>${esc(item.name||"-")}</b></td><td>${fmt(item.qty)} ${esc(item.unit||"")}</td><td>${fmt(received)} ${esc(item.unit||"")}</td><td>${fmt(remaining)} ${esc(item.unit||"")}</td><td><span class="badge ${statusClass(getCurrentPOStatus(p))}">${esc(getCurrentPOStatus(p)||"-")}</span></td></tr>`);
     }));
     body=`<h2>Detail PO & Penerimaan</h2><table><thead><tr><th>No</th><th>Nomor PO</th><th>Tgl PO</th><th>Tgl Dibutuhkan</th><th>Supplier</th><th>Item / Bahan</th><th>Qty PO</th><th>Sudah Datang</th><th>Sisa</th><th>Status</th></tr></thead><tbody>${detail.length?detail.join(""):`<tr><td colspan="10" class="empty">Tidak ada PO pada periode ini.</td></tr>`}</tbody></table>`;
     const receipts=[];
