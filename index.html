@@ -393,6 +393,7 @@ button,input,select,textarea{font:inherit}.app{display:flex;min-height:100vh}.si
   <div id="outsidePOForm" class="outside-po-box" style="display:none">
     <div class="outside-po-title">➕ Tambah Barang di Luar PO</div>
     <div class="form-grid">
+      <label>Tanggal Penerimaan<input type="date" id="extraDate"></label>
       <label>Nama Bahan<input id="extraName" placeholder="Contoh: Minyak Goreng"></label>
       <label>Satuan<select id="extraUnit"><option>Kg</option><option>Gram</option><option>Liter</option><option>Pcs</option><option>Pack</option><option>Box</option><option>Dus</option></select></label>
       <label>Jumlah Diterima<input type="number" id="extraQty" min="0.01" step="0.01" placeholder="0"></label>
@@ -411,6 +412,7 @@ button,input,select,textarea{font:inherit}.app{display:flex;min-height:100vh}.si
 <div class="panel receipt-history">
   <div class="panel-head"><div><h3>📜 Riwayat Penerimaan</h3><p>Edit atau hapus penerimaan yang sudah dicatat.</p></div></div>
   <div class="table-wrap"><table><thead><tr><th>No</th><th>Tanggal</th><th>No. PO</th><th>Bahan</th><th>Qty Diterima</th><th>Keterangan</th><th>Status Item</th><th>Aksi</th></tr></thead><tbody id="receiptHistoryBody"></tbody></table></div>
+  <div id="receiptHistoryPaging" class="dashboard-po-pagination"></div>
 </div>
 </section>
 
@@ -456,7 +458,7 @@ button,input,select,textarea{font:inherit}.app{display:flex;min-height:100vh}.si
     </div>
     <div class="panel"><div class="panel-head"><div><h3>Daftar PO</h3><p id="reportBahanPeriod"></p></div></div><div class="table-wrap"><table><thead><tr><th>Tanggal</th><th>No. PO</th><th>Supplier</th><th>Tgl Dibutuhkan</th><th>Item</th><th>Status</th><th>Aksi</th></tr></thead><tbody id="reportPOBody"></tbody></table></div></div>
     <div class="panel"><div class="panel-head"><div><h3>Daftar Penerimaan</h3><p>Rincian setiap barang yang masuk, termasuk barang di luar PO.</p></div></div><div class="table-wrap"><table><thead><tr><th>Tanggal</th><th>No. PO</th><th>Supplier</th><th>Item / Bahan</th><th>Jumlah Diterima</th><th>Satuan</th><th>Status</th><th>Keterangan</th></tr></thead><tbody id="reportReceiptBody"></tbody></table></div></div>
-    <div class="panel"><div class="panel-head"><div><h3>📦 Daftar Barang di Luar PO</h3><p>Barang yang diterima tetapi tidak tercantum dalam PO.</p></div></div><div class="table-wrap"><table><thead><tr><th>No</th><th>Tanggal</th><th>Referensi</th><th>Supplier</th><th>Item / Bahan</th><th>Jumlah</th><th>Satuan</th><th>Keterangan</th></tr></thead><tbody id="reportOutsidePOBody"></tbody></table></div></div>
+    <div class="panel"><div class="panel-head"><div><h3>📦 Daftar Barang di Luar PO</h3><p>Barang yang diterima tetapi tidak tercantum dalam PO.</p></div></div><div class="table-wrap"><table><thead><tr><th>No</th><th>Tanggal</th><th>Referensi</th><th>Supplier</th><th>Item / Bahan</th><th>Jumlah</th><th>Satuan</th><th>Keterangan</th><th>Aksi</th></tr></thead><tbody id="reportOutsidePOBody"></tbody></table></div></div>
   </div>
 </section>
 
@@ -642,6 +644,8 @@ window.savePO=async status=>{
   resetPO();
 };
 let outsidePOItems=[];
+let receiptHistoryPage=1;
+let receiptHistoryPageSize=10;
 
 function fillReceiptPO(){
   const active=bahan.pos.filter(p=>p.status!=="Selesai");
@@ -731,6 +735,7 @@ window.loadPOReceipt=()=>{
   $("recvSupplier").value=p?.supplier||"";
   $("recvStatus").value=p?.status||"";
   outsidePOItems=[];
+  $("extraDate").value=today();
   $("outsidePOForm").style.display="none";
   renderReceiptItems();
   renderReceiptHistory();
@@ -767,6 +772,7 @@ window.receiveOneItem=async index=>{
 
   toast(`${item.name}: ${fmt(qty)} ${item.unit} diterima.`);
   renderReceiptItems();
+  receiptHistoryPage=1;
   renderReceiptHistory();
   $("recvStatus").value=p.status||"";
   fillReceiptPO();
@@ -775,15 +781,19 @@ window.receiveOneItem=async index=>{
 
 window.toggleOutsidePOForm=()=>{
   const box=$("outsidePOForm");
+  if($("extraDate")&&!$("extraDate").value)$("extraDate").value=$("recvDate")?.value||today();
   box.style.display=box.style.display==="none"?"block":"none";
-  if(box.style.display==="block")$("extraName").focus();
+  if(box.style.display==="block"){
+    $("extraDate").value=$("recvDate").value||today();
+    $("extraName").focus();
+  }
 };
 
 window.addOutsidePOItem=()=>{
   const name=$("extraName").value.trim(), unit=$("extraUnit").value, qty=Number($("extraQty").value), keterangan=$("extraKeterangan").value.trim();
   if(!name)return alert("Nama bahan wajib diisi.");
   if(!qty||qty<=0)return alert("Jumlah harus lebih dari 0.");
-  outsidePOItems.push({name,unit,qty,received:qty,outsidePO:true,keterangan});
+  outsidePOItems.push({name,unit,qty,received:qty,outsidePO:true,date:$("extraDate")?.value||today(),keterangan});
   $("extraName").value=""; $("extraQty").value=""; $("extraKeterangan").value="";
   renderReceiptItems();
   toast(`${name}: ${fmt(qty)} ${unit} ditambahkan sebagai barang di luar PO.`);
@@ -793,8 +803,8 @@ window.removeOutsidePOItem=i=>{outsidePOItems.splice(i,1);renderReceiptItems();}
 
 window.saveOutsidePO=async()=>{
   if(!outsidePOItems.length)return alert("Belum ada barang di luar PO yang ditambahkan.");
-  const date=$("recvDate").value||today();
-  const items=outsidePOItems.map(x=>({name:x.name,unit:x.unit,qty:x.qty,receivedNow:x.qty,received:x.qty,outsidePO:true,keterangan:x.keterangan||""}));
+  const date=$("extraDate").value||$("recvDate").value||today();
+  const items=outsidePOItems.map(x=>({name:x.name,unit:x.unit,qty:x.qty,receivedNow:x.qty,received:x.qty,outsidePO:true,date:x.date||$("extraDate")?.value||$("recvDate")?.value||today(),keterangan:x.keterangan||""}));
   bahan.receipts.push({
     id:Date.now(),
     poId:null,
@@ -810,6 +820,7 @@ window.saveOutsidePO=async()=>{
   $("outsidePOForm").style.display="none";
   $("recvStatus").value="Diterima";
   renderReceiptItems();
+  receiptHistoryPage=1;
   renderReceiptHistory();
   toast("Penerimaan barang di luar PO berhasil disimpan.");
 };
@@ -926,6 +937,7 @@ window.editReceiptItem=async(receiptId,itemIndex)=>{
   }
   await saveBahan();
   toast("Penerimaan berhasil diedit.");
+  receiptHistoryPage=1;
   renderReceiptItems(); renderReceiptHistory();
 };
 
@@ -944,6 +956,7 @@ window.deleteReceiptItem=async(receiptId,itemIndex)=>{
 
   await saveBahan();
   toast("Penerimaan berhasil dihapus.");
+  receiptHistoryPage=1;
   renderReceiptItems(); renderReceiptHistory(); fillReceiptPO();
 };
 
@@ -964,10 +977,14 @@ function renderReceiptHistory(){
   }));
 
   rows.sort((a,b)=>((b.date+" "+b.time).localeCompare(a.date+" "+a.time)));
+  const totalPages=Math.max(1,Math.ceil(rows.length/receiptHistoryPageSize));
+  if(receiptHistoryPage>totalPages)receiptHistoryPage=totalPages;
+  const start=(receiptHistoryPage-1)*receiptHistoryPageSize;
+  const pageRows=rows.slice(start,start+receiptHistoryPageSize);
 
-  $("receiptHistoryBody").innerHTML=rows.length
-    ? rows.map((x,i)=>`<tr>
-      <td>${i+1}</td><td>${v30FormatDate(x.date)}${x.time?`<br><small>${esc(x.time)}</small>`:""}</td>
+  $("receiptHistoryBody").innerHTML=pageRows.length
+    ? pageRows.map((x,i)=>`<tr>
+      <td>${start+i+1}</td><td>${v30FormatDate(x.date)}${x.time?`<br><small>${esc(x.time)}</small>`:""}</td>
       <td>${esc(x.poNumber)}</td><td><b>${esc(x.name)}</b></td>
       <td>${fmt(x.qty)} ${esc(x.unit)}</td>
       <td>${esc(x.keterangan||"-")}</td>
@@ -978,9 +995,37 @@ function renderReceiptHistory(){
       </div></td>
     </tr>`).join("")
     : `<tr><td colspan="8" class="empty">Belum ada penerimaan.</td></tr>`;
+
+  const paging=$("receiptHistoryPaging");
+  if(!paging)return;
+  const buttons=[];
+  for(let i=1;i<=totalPages;i++){
+    buttons.push(`<button type="button" class="${i===receiptHistoryPage?"active":""}" onclick="setReceiptHistoryPage(${i})">${i}</button>`);
+  }
+  paging.innerHTML=`<div class="info">Menampilkan ${rows.length?start+1:0}-${Math.min(start+receiptHistoryPageSize,rows.length)} dari ${rows.length} data</div>
+    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:8px">
+      <label style="font-size:12px;color:#66776e">Baris per halaman
+        <select onchange="setReceiptHistoryPageSize(this.value)" style="margin-left:5px;padding:6px 9px;border:1px solid #d7e0da;border-radius:7px">
+          <option value="10" ${receiptHistoryPageSize===10?"selected":""}>10</option>
+          <option value="20" ${receiptHistoryPageSize===20?"selected":""}>20</option>
+          <option value="30" ${receiptHistoryPageSize===30?"selected":""}>30</option>
+        </select>
+      </label>
+      <div class="buttons">${buttons.join("")}</div>
+    </div>`;
 }
+window.setReceiptHistoryPage=page=>{
+  receiptHistoryPage=Math.max(1,Number(page)||1);
+  renderReceiptHistory();
+};
+window.setReceiptHistoryPageSize=size=>{
+  receiptHistoryPageSize=[10,20,30].includes(Number(size))?Number(size):10;
+  receiptHistoryPage=1;
+  renderReceiptHistory();
+};
 
 $("recvDate").value=today();
+if($("extraDate"))$("extraDate").value=today();
 
 window.addMasterBahan=async()=>{
   const name=$("mName").value.trim(), unit=$("mUnit").value, supplier=$("mSupplier").value.trim();
@@ -1570,6 +1615,52 @@ function reportRange(prefix="report"){
   const to=$(toId)?.value||"9999-12-31";
   return {from,to};
 }
+window.editOutsidePOReceipt=async(receiptId,itemIndex)=>{
+  const r=(bahan.receipts||[]).find(x=>String(x.id)===String(receiptId));
+  if(!r?.items?.[itemIndex])return alert("Data barang di luar PO tidak ditemukan.");
+  const item=r.items[itemIndex];
+  const date=prompt("Tanggal penerimaan (YYYY-MM-DD):",item.date||r.date||today());
+  if(date===null)return;
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(date))return alert("Format tanggal harus YYYY-MM-DD.");
+  const name=prompt("Nama barang:",item.name||"");
+  if(name===null)return;
+  if(!name.trim())return alert("Nama barang wajib diisi.");
+  const qtyValue=prompt("Jumlah diterima:",getReceiptItemQty(r,item));
+  if(qtyValue===null)return;
+  const qty=Number(qtyValue);
+  if(!Number.isFinite(qty)||qty<=0)return alert("Jumlah tidak valid.");
+  const unit=prompt("Satuan:",item.unit||"Pcs");
+  if(unit===null)return;
+  const supplier=prompt("Supplier:",r.supplier||"");
+  if(supplier===null)return;
+  const note=prompt("Keterangan:",item.keterangan||"");
+  if(note===null)return;
+  item.date=date;
+  r.supplier=supplier.trim();
+  item.name=name.trim();
+  item.unit=unit.trim()||"Pcs";
+  item.qty=qty; item.received=qty; item.receivedNow=qty;
+  item.keterangan=note.trim();
+  await saveBahan();
+  toast("Barang di luar PO berhasil diperbarui.");
+  renderReceiptHistory();
+  renderReport();
+};
+
+window.deleteOutsidePOReceipt=async(receiptId,itemIndex)=>{
+  const r=(bahan.receipts||[]).find(x=>String(x.id)===String(receiptId));
+  if(!r?.items?.[itemIndex])return alert("Data barang di luar PO tidak ditemukan.");
+  const item=r.items[itemIndex];
+  if(!confirm(`Hapus barang di luar PO "${item.name||"-"}" sebanyak ${fmt(getReceiptItemQty(r,item))} ${item.unit||""}?`))return;
+  r.items.splice(itemIndex,1);
+  if(!r.items.length)bahan.receipts=bahan.receipts.filter(x=>String(x.id)!==String(receiptId));
+  await saveBahan();
+  toast("Barang di luar PO berhasil dihapus.");
+  receiptHistoryPage=1;
+  renderReceiptHistory();
+  renderReport();
+};
+
 function renderReport(){
   setReportDefaultDates();
   const isStock=currentRole==="stockbumbu", isBahan=currentRole==="bahanbaku";
@@ -1597,9 +1688,14 @@ function renderReport(){
     }).slice().sort((a,b)=>String(b.needDate||"").localeCompare(String(a.needDate||"")));
     const selectedPOIds=new Set(pos.map(x=>String(x.id)));
     // Penerimaan dari PO mengikuti Tanggal Dibutuhkan PO.
-    // Barang di luar PO tidak memiliki Tanggal Dibutuhkan, sehingga tetap difilter berdasarkan tanggal penerimaan.
+    // Barang di luar PO difilter berdasarkan tanggal masing-masing item.
     const rec=bahan.receipts.filter(x=>{
-      if(x.poId==null) return x.date>=from&&x.date<=to;
+      if(x.poId==null){
+        return (x.items||[]).some(i=>{
+          const d=i.date||x.date||"";
+          return d>=from&&d<=to;
+        });
+      }
       return selectedPOIds.has(String(x.poId));
     }).slice().sort((a,b)=>String(b.date||"").localeCompare(String(a.date||"")));
     const poItems=pos.reduce((s,x)=>s+(Array.isArray(x.items)?x.items.length:0),0);
@@ -1612,7 +1708,7 @@ function renderReport(){
       const items=Array.isArray(x.items)?x.items:[];
       const outsideReceipt=(x.poId==null)||items.some(i=>i.outsidePO);
       if(!items.length){
-        receiptDetailRows.push(`<tr><td>${esc(x.date)}</td><td>${esc(x.poNumber||"-")}</td><td>${esc(x.supplier||"-")}</td><td>-</td><td>0</td><td>-</td><td><span class="badge ${statusClass(x.status)}">${esc(x.status||"-")}</span></td><td>${outsideReceipt?"Tambahan":"-"}</td></tr>`);
+        receiptDetailRows.push(`<tr><td>${esc(x.date||"-")}</td><td>${esc(x.poNumber||"-")}</td><td>${esc(x.supplier||"-")}</td><td>-</td><td>0</td><td>-</td><td><span class="badge ${statusClass(x.status)}">${esc(x.status||"-")}</span></td><td>${outsideReceipt?"Tambahan":"-"}</td></tr>`);
       }else{
         items.forEach(i=>{
           const qty=Number(i.receivedNow ?? i.received ?? i.qty ?? 0)||0;
@@ -1623,7 +1719,7 @@ function renderReport(){
             return String(pi.name||"").toLowerCase()===String(i.name||"").toLowerCase();
           }):null;
           const itemStatus=po&&poItem?getItemReceiptStatus(po,poItem):"Selesai";
-          receiptDetailRows.push(`<tr><td>${esc(x.date)}</td><td>${esc(x.poNumber||"-")}</td><td>${esc(x.supplier||"-")}</td><td><b>${esc(i.name||"-")}</b></td><td>${fmt(qty)}</td><td>${esc(i.unit||"-")}</td><td><span class="badge ${statusClass(itemStatus)}">${esc(itemStatus)}</span></td><td>${esc(i.keterangan|| (outside?"Tambahan":"-"))}</td></tr>`);
+          receiptDetailRows.push(`<tr><td>${esc(outside?(i.date||x.date):x.date)}</td><td>${esc(x.poNumber||"-")}</td><td>${esc(x.supplier||"-")}</td><td><b>${esc(i.name||"-")}</b></td><td>${fmt(qty)}</td><td>${esc(i.unit||"-")}</td><td><span class="badge ${statusClass(itemStatus)}">${esc(itemStatus)}</span></td><td>${esc(i.keterangan|| (outside?"Tambahan":"-"))}</td></tr>`);
         });
       }
     });
@@ -1633,10 +1729,10 @@ function renderReport(){
     rec.forEach(r=>(r.items||[]).forEach(i=>{
       if((r.poId==null)||!!i.outsidePO){
         const qty=Number(i.receivedNow ?? i.received ?? i.qty ?? 0)||0;
-        outsideRows.push(`<tr><td>${outsideRows.length+1}</td><td>${esc(r.date||"-")}</td><td>${esc(r.poNumber||"Di Luar PO")}</td><td>${esc(r.supplier||"-")}</td><td><b>${esc(i.name||"-")}</b></td><td>${fmt(qty)}</td><td>${esc(i.unit||"-")}</td><td>${esc(i.keterangan||"Tambahan")}</td></tr>`);
+        outsideRows.push(`<tr><td>${outsideRows.length+1}</td><td>${esc(i.date||r.date||"-")}</td><td>${esc(r.poNumber||"Di Luar PO")}</td><td>${esc(r.supplier||"-")}</td><td><b>${esc(i.name||"-")}</b></td><td>${fmt(qty)}</td><td>${esc(i.unit||"-")}</td><td>${esc(i.keterangan||"Tambahan")}</td><td><div class="receipt-item-action"><button class="btn btn-small" onclick="editOutsidePOReceipt('${r.id}',${(r.items||[]).indexOf(i)})">✏️ Edit</button><button class="btn btn-danger btn-small" onclick="deleteOutsidePOReceipt('${r.id}',${(r.items||[]).indexOf(i)})">🗑️ Hapus</button></div></td></tr>`);
       }
     }));
-    $("reportOutsidePOBody").innerHTML=outsideRows.length?outsideRows.join(""):`<tr><td colspan="8" class="empty">Tidak ada barang di luar PO pada periode ini.</td></tr>`;
+    $("reportOutsidePOBody").innerHTML=outsideRows.length?outsideRows.join(""):`<tr><td colspan="9" class="empty">Tidak ada barang di luar PO pada periode ini.</td></tr>`;
   }
 }
 window.printMasterBumbu=(id=null)=>{
@@ -1744,7 +1840,7 @@ window.printReport=()=>{
     rec.forEach(r=>(r.items||[]).forEach(i=>{
       if((r.poId==null)||!!i.outsidePO){
         const qty=Number(i.receivedNow ?? i.received ?? i.qty ?? 0)||0;
-        outsidePrint.push(`<tr><td>${outsidePrint.length+1}</td><td>${fmtDate(r.date)}</td><td>${esc(r.poNumber||"Di Luar PO")}</td><td>${esc(r.supplier||"-")}</td><td>${esc(i.name||"-")}</td><td>${fmt(qty)}</td><td>${esc(i.unit||"-")}</td><td>${esc(i.keterangan||"Tambahan")}</td></tr>`);
+        outsidePrint.push(`<tr><td>${outsidePrint.length+1}</td><td>${fmtDate(i.date||r.date)}</td><td>${esc(r.poNumber||"Di Luar PO")}</td><td>${esc(r.supplier||"-")}</td><td>${esc(i.name||"-")}</td><td>${fmt(qty)}</td><td>${esc(i.unit||"-")}</td><td>${esc(i.keterangan||"Tambahan")}</td></tr>`);
       }
     }));
     body+=`<h2 style="margin-top:24px">Barang di Luar PO</h2><table><thead><tr><th>No</th><th>Tanggal</th><th>Referensi</th><th>Supplier</th><th>Item / Bahan</th><th>Jumlah</th><th>Satuan</th><th>Keterangan</th></tr></thead><tbody>${outsidePrint.length?outsidePrint.join(""):`<tr><td colspan="8" class="empty">Tidak ada barang di luar PO pada periode ini.</td></tr>`}</tbody></table>`;
@@ -1762,7 +1858,7 @@ window.exportReportCSV=()=>{
   }else if(currentRole==="bahanbaku"){
     const {from,to}=reportRange("reportBahan"); rows.push(["Tanggal","Jenis","Referensi","Supplier","Item/Bahan","Jumlah","Satuan","Status","Keterangan"]);
     bahan.pos.filter(x=>x.date>=from&&x.date<=to).forEach(x=>(x.items||[]).forEach(i=>rows.push([x.date,"PO",x.number,x.supplier||"",i.name||"",i.qty||0,i.unit||"",x.status||"","-"])));
-    bahan.receipts.filter(x=>x.date>=from&&x.date<=to).forEach(x=>(x.items||[]).forEach(i=>{const outside=(x.poId==null)||!!i.outsidePO;rows.push([x.date,"Penerimaan",x.poNumber||"Di Luar PO",x.supplier||"",i.name||"",getReceiptItemQty(x,i),i.unit||"",x.status||"",i.keterangan|| (outside?"Tambahan":"-")])}));
+    bahan.receipts.filter(x=>x.date>=from&&x.date<=to).forEach(x=>(x.items||[]).forEach(i=>{const outside=(x.poId==null)||!!i.outsidePO;rows.push([outside?(i.date||x.date):x.date,"Penerimaan",x.poNumber||"Di Luar PO",x.supplier||"",i.name||"",getReceiptItemQty(x,i),i.unit||"",x.status||"",i.keterangan|| (outside?"Tambahan":"-")])}));
   }
   const csv=rows.map(r=>r.map(v=>`"${String(v??"").replaceAll('"','""')}"`).join(",")).join("\n");
   const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([csv],{type:"text/csv;charset=utf-8"}));a.download=`laporan-${currentRole}-${today()}.csv`;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),500);
