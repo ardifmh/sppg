@@ -454,7 +454,7 @@ button,input,select,textarea{font:inherit}.app{display:flex;min-height:100vh}.si
       <div class="stat-card"><div class="stat-icon">📦</div><div><span>Total Penerimaan</span><strong id="reportReceipt">0</strong></div></div>
       <div class="stat-card"><div class="stat-icon">✅</div><div><span>Item Diterima</span><strong id="reportReceivedItems">0</strong></div></div>
     </div>
-    <div class="panel"><div class="panel-head"><div><h3>Daftar PO</h3><p id="reportBahanPeriod"></p></div></div><div class="table-wrap"><table><thead><tr><th>Tanggal</th><th>No. PO</th><th>Supplier</th><th>Tgl Dibutuhkan</th><th>Item</th><th>Status</th></tr></thead><tbody id="reportPOBody"></tbody></table></div></div>
+    <div class="panel"><div class="panel-head"><div><h3>Daftar PO</h3><p id="reportBahanPeriod"></p></div></div><div class="table-wrap"><table><thead><tr><th>Tanggal</th><th>No. PO</th><th>Supplier</th><th>Tgl Dibutuhkan</th><th>Item</th><th>Status</th><th>Aksi</th></tr></thead><tbody id="reportPOBody"></tbody></table></div></div>
     <div class="panel"><div class="panel-head"><div><h3>Daftar Penerimaan</h3><p>Rincian setiap barang yang masuk, termasuk barang di luar PO.</p></div></div><div class="table-wrap"><table><thead><tr><th>Tanggal</th><th>No. PO</th><th>Supplier</th><th>Item / Bahan</th><th>Jumlah Diterima</th><th>Satuan</th><th>Status</th><th>Keterangan</th></tr></thead><tbody id="reportReceiptBody"></tbody></table></div></div>
     <div class="panel"><div class="panel-head"><div><h3>📦 Daftar Barang di Luar PO</h3><p>Barang yang diterima tetapi tidak tercantum dalam PO.</p></div></div><div class="table-wrap"><table><thead><tr><th>No</th><th>Tanggal</th><th>Referensi</th><th>Supplier</th><th>Item / Bahan</th><th>Jumlah</th><th>Satuan</th><th>Keterangan</th></tr></thead><tbody id="reportOutsidePOBody"></tbody></table></div></div>
   </div>
@@ -1606,7 +1606,7 @@ function renderReport(){
     const receivedItems=rec.reduce((s,x)=>s+(Array.isArray(x.items)?x.items.reduce((q,i)=>q+Number(i.received||0),0):0),0);
     $("reportPO").textContent=pos.length; $("reportPOItems").textContent=poItems; $("reportReceipt").textContent=rec.length; $("reportReceivedItems").textContent=fmt(receivedItems);
     $("reportBahanPeriod").textContent=`Periode ${from.split("-").reverse().join("-")} s/d ${to.split("-").reverse().join("-")}`;
-    $("reportPOBody").innerHTML=pos.length?pos.map(x=>`<tr><td>${esc(x.date)}</td><td><b>${esc(x.number)}</b></td><td>${esc(x.supplier||"-")}</td><td>${esc(x.needDate||"-")}</td><td>${Array.isArray(x.items)?x.items.length:0}</td><td><span class="badge ${statusClass(x.status)}">${esc(x.status||"-")}</span></td></tr>`).join(""):`<tr><td colspan="6" class="empty">Tidak ada PO pada periode ini.</td></tr>`;
+    $("reportPOBody").innerHTML=pos.length?pos.map(x=>`<tr><td>${esc(x.date)}</td><td><b>${esc(x.number)}</b></td><td>${esc(x.supplier||"-")}</td><td>${esc(x.needDate||"-")}</td><td>${Array.isArray(x.items)?x.items.length:0}</td><td><span class="badge ${statusClass(x.status)}">${esc(x.status||"-")}</span></td><td><button class="btn btn-light btn-sm" onclick="printSinglePO(${JSON.stringify(String(x.id))})">🖨️ Cetak</button></td></tr>`).join(""):`<tr><td colspan="7" class="empty">Tidak ada PO pada periode ini.</td></tr>`;
     const receiptDetailRows=[];
     rec.forEach(x=>{
       const items=Array.isArray(x.items)?x.items:[];
@@ -1617,7 +1617,13 @@ function renderReport(){
         items.forEach(i=>{
           const qty=Number(i.receivedNow ?? i.received ?? i.qty ?? 0)||0;
           const outside=outsideReceipt||!!i.outsidePO;
-          receiptDetailRows.push(`<tr><td>${esc(x.date)}</td><td>${esc(x.poNumber||"-")}</td><td>${esc(x.supplier||"-")}</td><td><b>${esc(i.name||"-")}</b></td><td>${fmt(qty)}</td><td>${esc(i.unit||"-")}</td><td><span class="badge ${statusClass(x.status)}">${esc(x.status||"-")}</span></td><td>${esc(i.keterangan|| (outside?"Tambahan":"-"))}</td></tr>`);
+          const po=outside?null:bahan.pos.find(p=>String(p.id)===String(x.poId));
+          const poItem=po?(po.items||[]).find(pi=>{
+            if(i.masterId!=null && pi.masterId!=null)return String(i.masterId)===String(pi.masterId);
+            return String(pi.name||"").toLowerCase()===String(i.name||"").toLowerCase();
+          }):null;
+          const itemStatus=po&&poItem?getItemReceiptStatus(po,poItem):"Selesai";
+          receiptDetailRows.push(`<tr><td>${esc(x.date)}</td><td>${esc(x.poNumber||"-")}</td><td>${esc(x.supplier||"-")}</td><td><b>${esc(i.name||"-")}</b></td><td>${fmt(qty)}</td><td>${esc(i.unit||"-")}</td><td><span class="badge ${statusClass(itemStatus)}">${esc(itemStatus)}</span></td><td>${esc(i.keterangan|| (outside?"Tambahan":"-"))}</td></tr>`);
         });
       }
     });
@@ -1665,6 +1671,27 @@ window.printMasterBumbu=(id=null)=>{
     *{box-sizing:border-box}body{font-family:Arial,Helvetica,sans-serif;color:#222;margin:0;padding:18px;background:#fff}h1{font-size:19px;margin:0 0 4px;color:#17372a}p{margin:0 0 14px;color:#66776e;font-size:10px}.head{border-bottom:2px solid #214e3a;padding-bottom:9px;margin-bottom:12px}table{width:100%;border-collapse:collapse}th,td{border:1px solid #cfd6d2;padding:5px 6px;font-size:8.5px;text-align:left;vertical-align:middle}th{background:#eef5f0;color:#214e3a;font-weight:700;white-space:nowrap}tr:nth-child(even) td{background:#fafcfb}.num{text-align:right}.status{font-weight:700}.status.aman{color:#177245}.status.menipis{color:#a56800}.status.habis{color:#b42318}.footer{margin-top:10px;font-size:8px;color:#777} @media print{body{padding:7mm}@page{size:landscape;margin:7mm}thead{display:table-header-group}tr{page-break-inside:avoid}}</style></head><body><div class="head"><h1>${title}</h1><p>Sistem Manajemen Dapur &nbsp;•&nbsp; Dicetak: ${new Date().toLocaleString("id-ID")}</p></div><table><thead><tr><th>No</th><th>Kode</th><th>Nama Bumbu</th><th>Satuan</th><th>Min.</th><th>Stok</th><th>Status</th><th>Total Masuk</th><th>Total Keluar</th><th>Selisih</th><th>Transaksi Terakhir</th><th>Keterangan Terakhir</th></tr></thead><tbody>${rows}</tbody></table><div class="footer">Laporan ringkas dan detail berdasarkan Master Bumbu serta riwayat transaksi yang tersimpan.</div><script>window.onload=()=>setTimeout(()=>window.print(),300)<\/script></body></html>`);
   w.document.close();
 };
+window.printSinglePO=(poId)=>{
+  const p=bahan.pos.find(x=>String(x.id)===String(poId));
+  if(!p){alert("PO tidak ditemukan.");return}
+  const w=window.open("","_blank","width=1200,height=800");
+  if(!w){alert("Izinkan pop-up browser untuk mencetak laporan.");return;}
+  const fmtDate=v=>v?String(v).split("-").reverse().join("-"):"-";
+  const items=(p.items||[]).map((item,i)=>{
+    const received=getReceivedTotal(p,item);
+    const remaining=Math.max(0,Number(item.qty||0)-received);
+    const st=getItemReceiptStatus(p,item,received);
+    return `<tr><td>${i+1}</td><td><b>${esc(item.name||"-")}</b></td><td>${fmt(item.qty)} ${esc(item.unit||"")}</td><td>${fmt(received)} ${esc(item.unit||"")}</td><td>${fmt(remaining)} ${esc(item.unit||"")}</td><td><span class="badge">${esc(st)}</span></td><td>${esc(item.keterangan||"-")}</td></tr>`;
+  }).join("");
+  const receipts=[];
+  (bahan.receipts||[]).filter(r=>String(r.poId)===String(p.id)).forEach(r=>(r.items||[]).forEach(item=>{
+    const qty=getReceiptItemQty(r,item);
+    receipts.push(`<tr><td>${fmtDate(r.date)}</td><td>${esc(r.poNumber||p.number||"-")}</td><td>${esc(item.name||"-")}</td><td>${fmt(qty)} ${esc(item.unit||"")}</td><td>${esc(item.keterangan||"-")}</td></tr>`);
+  }));
+  const status=getCurrentPOStatus(p);
+  w.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Detail ${esc(p.number||"PO")}</title><style>*{box-sizing:border-box}body{font-family:Arial,Helvetica,sans-serif;color:#17372a;margin:0;padding:22px;background:#fff}h1{margin:0 0 5px;font-size:21px}h2{font-size:15px;margin:20px 0 9px;color:#214e3a}p{margin:3px 0;color:#66776e;font-size:11px}.info{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:15px 0}.box{border:1px solid #d7e0da;padding:8px;border-radius:7px;font-size:10px}.box b{display:block;color:#66776e;margin-bottom:3px}table{width:100%;border-collapse:collapse;margin-bottom:8px}th,td{border:1px solid #cfdad3;padding:7px 8px;font-size:10px;text-align:left;vertical-align:top}th{background:#eef5f0;color:#214e3a}.badge{display:inline-block;padding:4px 7px;border-radius:12px;background:#edf4ef;font-weight:700;font-size:9px}.footer{margin-top:18px;font-size:9px;color:#777}@media print{body{padding:8mm}@page{size:landscape;margin:8mm}thead{display:table-header-group}tr{page-break-inside:avoid}}</style></head><body><h1>Detail PO ${esc(p.number||"-")}</h1><p>Sistem Manajemen Dapur • Dicetak: ${new Date().toLocaleString("id-ID")}</p><div class="info"><div class="box"><b>Tanggal PO</b>${fmtDate(p.date)}</div><div class="box"><b>Tanggal Dibutuhkan</b>${fmtDate(p.needDate)}</div><div class="box"><b>Supplier</b>${esc(p.supplier||"-")}</div><div class="box"><b>Status PO</b>${esc(status)}</div></div><h2>Daftar Item</h2><table><thead><tr><th>No</th><th>Item / Bahan</th><th>Qty PO</th><th>Sudah Datang</th><th>Sisa</th><th>Status Item</th><th>Keterangan</th></tr></thead><tbody>${items||`<tr><td colspan="7">Tidak ada item.</td></tr>`}</tbody></table><h2>Riwayat Penerimaan</h2><table><thead><tr><th>Tanggal</th><th>No. PO</th><th>Item / Bahan</th><th>Jumlah Diterima</th><th>Keterangan</th></tr></thead><tbody>${receipts.length?receipts.join(""):`<tr><td colspan="5">Belum ada penerimaan.</td></tr>`}</tbody></table><div class="footer">Laporan dicetak dari menu Laporan Bahan Baku.</div><script>window.onload=()=>setTimeout(()=>window.print(),300)<\/script></body></html>`);
+  w.document.close();
+};
 window.printReport=()=>{
   const w=window.open("","_blank","width=1200,height=800");
   if(!w){alert("Izinkan pop-up browser untuk mencetak laporan.");return;}
@@ -1702,7 +1729,16 @@ window.printReport=()=>{
     }));
     body=`<h2>Detail PO & Penerimaan</h2><table><thead><tr><th>No</th><th>Nomor PO</th><th>Tgl PO</th><th>Tgl Dibutuhkan</th><th>Supplier</th><th>Item / Bahan</th><th>Qty PO</th><th>Sudah Datang</th><th>Sisa</th><th>Status</th></tr></thead><tbody>${detail.length?detail.join(""):`<tr><td colspan="10" class="empty">Tidak ada PO pada periode ini.</td></tr>`}</tbody></table>`;
     const receipts=[];
-    rec.forEach((r,ri)=>(r.items||[]).forEach(item=>{const outside=(r.poId==null)||!!item.outsidePO;receipts.push(`<tr><td>${ri+1}</td><td>${fmtDate(r.date)}</td><td>${esc(r.poNumber||"-")}</td><td>${esc(r.supplier||"-")}</td><td>${esc(item.name||"-")}</td><td>${fmt(getReceiptItemQty(r,item))} ${esc(item.unit||"")}</td><td>${r.status==="Diterima"?"Diterima":esc(r.status||"-")}</td><td>${esc(item.keterangan|| (outside?"Tambahan":"-"))}</td></tr>`)}));
+    rec.forEach((r,ri)=>(r.items||[]).forEach(item=>{
+      const outside=(r.poId==null)||!!item.outsidePO;
+      const po=outside?null:bahan.pos.find(p=>String(p.id)===String(r.poId));
+      const poItem=po?(po.items||[]).find(pi=>{
+        if(item.masterId!=null && pi.masterId!=null)return String(item.masterId)===String(pi.masterId);
+        return String(pi.name||"").toLowerCase()===String(item.name||"").toLowerCase();
+      }):null;
+      const itemStatus=po&&poItem?getItemReceiptStatus(po,poItem):"Selesai";
+      receipts.push(`<tr><td>${ri+1}</td><td>${fmtDate(r.date)}</td><td>${esc(r.poNumber||"-")}</td><td>${esc(r.supplier||"-")}</td><td>${esc(item.name||"-")}</td><td>${fmt(getReceiptItemQty(r,item))} ${esc(item.unit||"")}</td><td>${esc(itemStatus)}</td><td>${esc(item.keterangan|| (outside?"Tambahan":"-"))}</td></tr>`)
+    }));
     body+=`<h2 style="margin-top:24px">Detail Penerimaan</h2><table><thead><tr><th>No</th><th>Tanggal</th><th>Nomor PO</th><th>Supplier</th><th>Item / Bahan</th><th>Jumlah Diterima</th><th>Status</th><th>Keterangan</th></tr></thead><tbody>${receipts.length?receipts.join(""):`<tr><td colspan="8" class="empty">Tidak ada penerimaan pada periode ini.</td></tr>`}</tbody></table>`;
     const outsidePrint=[];
     rec.forEach(r=>(r.items||[]).forEach(i=>{
