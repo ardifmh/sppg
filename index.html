@@ -201,6 +201,73 @@ button,input,select,textarea{font:inherit}.app{display:flex;min-height:100vh}.si
 .receipt-remaining.zero{color:#197044}
 .receipt-remaining.notzero{color:#a15c00}
 </style>
+<style id="v67-mobile-responsive">
+/* Desktop layout remains unchanged. These rules apply only to phones/tablets. */
+.mobile-menu-toggle,.mobile-nav-backdrop{display:none}
+@media(max-width:700px){
+  body{font-size:14px;overflow-x:hidden}
+  .app{display:block;min-height:100vh}
+  .sidebar{position:fixed;left:0;top:0;bottom:0;width:min(82vw,300px);height:100dvh;min-height:0;overflow-y:auto;transform:translateX(-105%);transition:transform .22s ease;z-index:100;padding:16px 12px;box-shadow:8px 0 28px rgba(0,0,0,.18)}
+  body.mobile-nav-open .sidebar{transform:translateX(0)}
+  .sidebar-bottom{position:static;margin-top:18px;padding-bottom:20px}
+  .mobile-nav-backdrop{display:block;position:fixed;inset:0;background:rgba(8,25,17,.45);z-index:90;opacity:0;visibility:hidden;transition:opacity .2s ease}
+  body.mobile-nav-open .mobile-nav-backdrop{opacity:1;visibility:visible}
+  .main{margin:0;width:100%;padding:12px 12px 28px;min-width:0}
+  .topbar{display:flex;align-items:flex-start;gap:8px;margin:0 0 14px;flex-wrap:wrap}
+  .topbar>div:first-child{flex:1;min-width:0}
+  .topbar h2{font-size:21px;line-height:1.2}
+  .topbar p{font-size:11px;line-height:1.4}
+  .top-actions{width:100%;display:flex;align-items:center;gap:7px;margin-top:5px}
+  .mobile-menu-toggle{display:inline-flex;align-items:center;gap:5px;padding:9px 12px;min-height:40px}
+  .top-actions .sync{font-size:10px;padding:7px 9px}
+  .top-actions .btn{font-size:11px;padding:9px 10px;min-height:40px}
+  .top-actions #authEmail{display:none!important}
+  .cards{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-bottom:12px}
+  .stat-card{padding:11px 9px;gap:8px;border-radius:12px;min-width:0}
+  .stat-icon{width:34px;height:34px;flex:0 0 34px}
+  .stat-card span{font-size:10px;line-height:1.3}
+  .stat-card strong{font-size:19px;overflow-wrap:anywhere}
+  .grid-2,.two-col{grid-template-columns:minmax(0,1fr);gap:10px}
+  .panel{padding:13px;border-radius:12px;margin-bottom:11px;min-width:0}
+  .panel-head{align-items:flex-start;flex-wrap:wrap;gap:9px}
+  .panel-head h3{font-size:16px}
+  .panel-head p,.muted{font-size:11px;line-height:1.4}
+  .panel-head>.form-actions{width:100%;display:flex;flex-wrap:wrap}
+  .toolbar{gap:7px}
+  .search{min-width:0;width:100%;flex-basis:100%;font-size:16px}
+  .toolbar select{width:100%;max-width:none!important;min-height:42px}
+  .form-grid{grid-template-columns:minmax(0,1fr);gap:11px}
+  .form-grid label,.modal label{font-size:12px;line-height:1.4}
+  .form-grid input,.form-grid select,.form-grid textarea,.modal input,.modal select,.item-input{font-size:16px;min-height:43px;padding:11px}
+  .form-actions{grid-column:1/-1;display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  .form-actions .btn{width:100%;min-height:43px}
+  .btn{min-height:39px;padding:10px 12px}
+  .quick{gap:6px}
+  .quick button{min-height:38px}
+  .table-wrap{width:100%;max-width:100%;overflow-x:auto;overscroll-behavior-x:contain;-webkit-overflow-scrolling:touch;border-radius:8px}
+  table{min-width:650px}
+  th,td{padding:9px 8px;font-size:11px;white-space:nowrap}
+  .receipt-history table{min-width:850px}
+  .modal-backdrop{padding:10px;align-items:flex-end}
+  .modal{width:100%;max-width:520px;max-height:90dvh;overflow:auto;border-radius:17px 17px 10px 10px;padding:16px}
+  .login-card{padding:23px 19px}
+  .toast{left:12px;right:12px;bottom:12px;text-align:center}
+  .dashboard-date-title{align-items:flex-start;flex-wrap:wrap}
+  .dashboard-date-tabs{padding-bottom:8px}
+  .dashboard-po-pagination .buttons{display:flex;flex-wrap:wrap;gap:6px}
+  /* Keep status row colors visible while allowing wide data tables to scroll. */
+  .stock-low td,.stock-out td{white-space:nowrap}
+}
+@media(max-width:380px){
+  .main{padding:10px 9px 24px}
+  .cards{gap:6px}
+  .stat-card{padding:9px 7px}
+  .stat-card strong{font-size:17px}
+  .top-actions{gap:5px}
+  .top-actions .btn{padding:8px}
+}
+@media(prefers-reduced-motion:reduce){.sidebar,.mobile-nav-backdrop{transition:none}}
+</style>
 
 </head>
 <body>
@@ -240,11 +307,12 @@ button,input,select,textarea{font:inherit}.app{display:flex;min-height:100vh}.si
     <button class="side-action danger" id="resetBtn">♻️ Reset Semua Data</button>
   </div>
 </aside>
+<div class="mobile-nav-backdrop" id="mobileNavBackdrop"></div>
 
 <main class="main">
 <header class="topbar">
   <div><h2 id="pageTitle">Dashboard</h2><p>Kelola persediaan, bahan baku, PO, dan penerimaan dapur dengan mudah.</p></div>
-  <div class="top-actions"><span id="authEmail" class="auth-user" style="display:none"></span><button class="btn btn-light" id="logoutBtn">🚪 Keluar</button><span class="sync" id="syncStatus">🟢 Cloud aktif</span><button class="btn btn-light" id="quickMasuk">＋ Stok Masuk</button><button class="btn btn-primary" id="quickKeluar">− Stok Keluar</button></div>
+  <div class="top-actions"><button class="btn btn-light mobile-menu-toggle" id="mobileMenuToggle" type="button" aria-label="Buka menu">☰ Menu</button><span id="authEmail" class="auth-user" style="display:none"></span><button class="btn btn-light" id="logoutBtn">🚪 Keluar</button><span class="sync" id="syncStatus">🟢 Cloud aktif</span><button class="btn btn-light" id="quickMasuk">＋ Stok Masuk</button><button class="btn btn-primary" id="quickKeluar">− Stok Keluar</button></div>
 </header>
 
 <section id="dashboard" class="page active">
@@ -542,6 +610,12 @@ async function saveBahan(){localStorage.setItem(BAHAN_KEY,JSON.stringify(bahan))
 
 function navigate(page){document.querySelectorAll(".page").forEach(x=>x.classList.toggle("active",x.id===page));document.querySelectorAll(".nav-item").forEach(x=>x.classList.toggle("active",x.dataset.page===page));const titles={dashboard:"Dashboard",masterBumbu:"Master Bumbu",masuk:"Stok Masuk",keluar:"Stok Keluar",po:"PO Harian",penerimaan:"Penerimaan Harian",masterBahan:"Master Bahan Baku",laporan:"Laporan",riwayat:"Riwayat"};$("pageTitle").textContent=titles[page]||"Dashboard";if(page==="penerimaan")fillReceiptPO()}
 document.querySelectorAll(".nav-item").forEach(x=>x.onclick=()=>navigate(x.dataset.page));
+const mobileMenuToggle=$("mobileMenuToggle"),mobileNavBackdrop=$("mobileNavBackdrop");
+function closeMobileMenu(){document.body.classList.remove("mobile-nav-open");if(mobileMenuToggle)mobileMenuToggle.setAttribute("aria-expanded","false")}
+if(mobileMenuToggle){mobileMenuToggle.setAttribute("aria-expanded","false");mobileMenuToggle.onclick=()=>{const opened=document.body.classList.toggle("mobile-nav-open");mobileMenuToggle.setAttribute("aria-expanded",String(opened))}}
+if(mobileNavBackdrop)mobileNavBackdrop.onclick=closeMobileMenu;
+document.querySelectorAll(".nav-item").forEach(x=>x.addEventListener("click",closeMobileMenu));
+window.addEventListener("resize",()=>{if(window.innerWidth>700)closeMobileMenu()});
 $("quickMasuk").onclick=()=>navigate("masuk");$("quickKeluar").onclick=()=>navigate("keluar");
 
 function renderMasterBumbu(){const q=($("masterSearch").value||"").toLowerCase();const sort=$("masterSortNama")?.value||"asc";const list=bumbu.bumbu.filter(x=>(x.kode+" "+x.nama).toLowerCase().includes(q)).sort((a,b)=>{const c=String(a.nama||"").localeCompare(String(b.nama||""),"id",{sensitivity:"base",numeric:true});return sort==="desc"?-c:c});$("masterBody").innerHTML=list.map(x=>`<tr class="${x.stok<=0?"stock-out":x.stok<=Number(x.min||0)+2?"stock-low":""}"><td>${esc(x.kode)}</td><td>${esc(x.nama)}</td><td>${esc(x.satuan)}${packageInfo(x)?`<br><small style="color:#718096">${esc(packageInfo(x))}</small>`:""}</td><td>${fmt(x.min)}</td><td><b>${fmt(x.stok)}</b></td><td><span class="badge ${x.stok<=0?"danger":x.stok<=Number(x.min||0)+2?"warning":"safe"}">${x.stok<=0?"HABIS":x.stok<=Number(x.min||0)+2?"MENIPIS":"AMAN"}</span></td><td><button class="btn btn-small" onclick="editBumbu('${x.id}')">Edit</button> <button class="btn btn-danger" onclick="deleteBumbu('${x.id}')">Hapus</button></td></tr>`).join("")||`<tr><td colspan="7" class="empty">Belum ada bumbu.</td></tr>`;
